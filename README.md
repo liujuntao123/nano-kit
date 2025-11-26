@@ -1,9 +1,3 @@
-这是一个为您定制的 `README.md` 文档，专门针对您提供的 **Gemini 3 Pro - 绘图工作台** 代码。
-
-这份文档旨在体现项目的“专业性”、“轻量化”和“隐私安全”特点，同时突出了其核心的**绘图**和**切片工具**功能。
-
----
-
 # Gemini 3 Pro - AI 绘图工作台 (Web Client)
 
 ![License](https://img.shields.io/badge/license-MIT-green)![Version](https://img.shields.io/badge/version-1.0.0-blue)![Status](https://img.shields.io/badge/status-Active-success)
@@ -47,10 +41,17 @@
 ## 📸 界面概览
 
 ### 🖥️ 桌面端工作台
-*(在此处放置一张桌面端完整界面的截图)*
+<img width="2390" height="1684" alt="image" src="https://github.com/user-attachments/assets/76fa7155-8a49-4c65-8499-552bbeb95870" />
+<img width="3840" height="1916" alt="image" src="https://github.com/user-attachments/assets/1c94e65e-d5c0-49be-8695-a92c6da76947" />
+
+<img width="2390" height="1684" alt="image" src="https://github.com/user-attachments/assets/ce2d2da6-05e7-4f8d-b4e9-807ff74e55ad" />
 
 ### 📱 移动端与切片工具
-*(在此处放置一张移动端界面和切片工具界面的拼图)*
+<img width="646" height="1398" alt="image" src="https://github.com/user-attachments/assets/2ae8509a-5ffa-49ef-9160-0bf7926529d6" />
+<img width="646" height="1398" alt="image" src="https://github.com/user-attachments/assets/baf8934a-3e52-483f-8d9b-84bfabbff04a" />
+<img width="646" height="1398" alt="image" src="https://github.com/user-attachments/assets/83ffe7c6-9230-49f0-9093-714b70790462" />
+
+<img width="3840" height="1916" alt="image" src="https://github.com/user-attachments/assets/c2324834-58b4-42da-8070-1f5d4e3ec133" />
 
 ---
 
