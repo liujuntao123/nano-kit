@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gemini 3 Pro - 绘图工作台（Google版）</title>
+    <style>
+        :root {
+            --primary-color: #1a73e8;
+            --bg-color: #ffffff;
+            --border-color: #e0e0e0;
+            --text-main: #202124;
+            --text-sub: #5f6368;
+            --hover-color: #f1f3f4;
+            --sidebar-width: 280px;
+            --header-height: 60px;
+            --content-max-width: 860px;
+            --input-bg: #f0f2f5;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        /* --- 滚动条美化 --- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
+
+        body {
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0; padding: 0;
+            display: flex; height: 100vh; overflow: hidden;
+            background-color: var(--bg-color); color: var(--text-main);
+        }
+
+        /* --- 侧边栏 --- */
+        .sidebar-nav {
+            width: var(--sidebar-width); background-color: #f9f9fa; border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column; flex-shrink: 0; height: 100%;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 60;
+            padding-top: 10px;
+        }
+        
+        .new-chat-btn {
+            margin: 5px 12px; padding: 12px;
+            background: #fff; border: 1px solid #dadce0; border-radius: 8px;
+            color: var(--text-main); font-weight: 500; cursor: pointer; font-size: 14px;
+            display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;
+            flex-shrink: 0; user-select: none;
+        }
+        .new-chat-btn:hover { background: #f8f9fa; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-color: #d2e3fc; color: var(--primary-color); }
+        
+        .new-chat-btn svg { color: #5f6368; transition: color 0.2s; }
+        .new-chat-btn:hover svg { color: var(--primary-color); }
+
+        .feature-btn {
+            background: linear-gradient(135deg, #fff0f0 0%, #fff 100%);
+            border-color: #fad2cf; color: #d93025;
+        }
+        .feature-btn svg { color: #d93025; }
+        .feature-btn:hover { background: #fce8e6; border-color: #f9b3b3; }
+        .feature-btn:hover svg { color: #b31412; }
+
+        /* 普通工具按钮样式 */
+        .tool-nav-btn {
+            background: linear-gradient(135deg, #e8f0fe 0%, #fff 100%);
+            border-color: #d2e3fc; color: #1a73e8;
+        }
+        .tool-nav-btn svg { color: #1a73e8; }
+        .tool-nav-btn:hover { background: #d2e3fc; border-color: #1967d2; }
+
+        .session-list { flex: 1; overflow-y: auto; padding: 0 12px; margin-top: 10px; }
+        .session-item {
+            padding: 10px 12px; margin-bottom: 4px; border-radius: 6px;
+            cursor: pointer; color: #444; font-size: 13px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: background 0.15s; position: relative; flex-shrink: 0;
+        }
+        .session-item:hover { background-color: #eef0f2; }
+        .session-item.active { background-color: #e8f0fe; color: #1967d2; font-weight: 500; }
+        .session-item.active::before {
+            content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px;
+            background: #1967d2; border-radius: 0 2px 2px 0;
+        }
+
+        .session-delete { opacity: 0; color: #5f6368; padding: 4px; border-radius: 4px; font-size: 16px; line-height: 1; }
+        .session-item:hover .session-delete { opacity: 1; }
+        .session-delete:hover { background: #dadce0; color: #d93025; }
+        
+        .session-loading { font-size: 10px; margin-right: 6px; display: none; }
+        .session-item.generating .session-loading { display: inline-block; animation: spin 1s linear infinite; }
+
+        /* --- 主区域 --- */
+        .main-area {
+            flex: 1; display: flex; flex-direction: column;
+            position: relative; background-color: #fff; height: 100%;
+        }
+
+        .desktop-header {
+            height: var(--header-height);
+            border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px;
+            background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px);
+            z-index: 10; flex-shrink: 0;
+        }
+        .brand-area { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; color: #202124; }
+        .header-actions { display: flex; gap: 10px; }
+        .header-icon-btn {
+            width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: #5f6368; transition: background 0.2s;
+        }
+        .header-icon-btn:hover { background: #f1f3f4; color: #202124; }
+
+        .mobile-header {
+            display: none; position: fixed; top: 0; left: 0; right: 0; height: var(--header-height);
+            background: #fff; border-bottom: 1px solid var(--border-color);
+            z-index: 50; align-items: center; padding: 0 20px; justify-content: space-between;
+        }
+
+        .chat-container {
+            flex: 1; overflow-y: auto; padding: 20px 0 160px 0;
+            display: flex; flex-direction: column; align-items: center;
+            scroll-behavior: smooth; width: 100%;
+        }
+
+        .message-row {
+            width: 100%; max-width: var(--content-max-width);
+            padding: 0 24px; margin-bottom: 24px;
+            display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .message-bubble-container { display: flex; width: 100%; }
+        .message-row.user .message-bubble-container { justify-content: flex-end; }
+        .message-row.bot .message-bubble-container { 
+            justify-content: flex-start; flex-direction: column; align-items: flex-start; width: 100%;
+        }
+        .msg-content { 
+            padding: 12px 18px; border-radius: 16px; font-size: 15px; 
+            line-height: 1.6; word-break: break-word; max-width: 100%; position: relative;
+        }
+        .message-row.user .msg-content { background-color: #f0f4f8; border-bottom-right-radius: 4px; max-width: 85%; color: #1f1f1f; }
+        .message-row.bot .msg-content { padding: 0; width: 100%; }
+
+        /* --- 消息操作栏 --- */
+        .msg-actions {
+            display: flex; gap: 12px; margin-top: 4px; padding: 0 4px;
+            opacity: 0; transition: opacity 0.2s; font-size: 11px; color: #80868b;
+            width: 100%; justify-content: flex-end; /* 靠右对齐 */
+        }
+        .message-row:hover .msg-actions { opacity: 1; }
+        .action-btn { 
+            cursor: pointer; display: flex; align-items: center; gap: 4px; 
+            transition: color 0.2s; white-space: nowrap; /* 防止换行 */
+        }
+        .action-btn:hover { color: #1a73e8; }
+
+        .empty-state {
+            margin-top: 10vh; text-align: center; color: var(--text-sub);
+            animation: fadeIn 0.5s; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        
+        /* Google Logo SVG */
+        .google-logo-svg {
+            width: 56px; height: 56px; margin-bottom: 16px;
+        }
+        
+        .brand-logo-small {
+            width: 24px; height: 24px; margin-right: 4px;
+        }
+
+        .input-container-outer {
+            position: absolute; bottom: 30px; left: 50%;
+            transform: translateX(-50%); width: 100%; max-width: var(--content-max-width);
+            padding: 0 20px; display: flex; flex-direction: column; align-items: center; z-index: 20;
+            pointer-events: none;
+        }
+        .input-wrapper {
+            width: 100%; background: var(--input-bg); border-radius: 24px;
+            display: flex; align-items: flex-end; padding: 10px 12px; 
+            transition: background 0.2s, box-shadow 0.2s; border: 1px solid transparent; min-height: 52px;
+            pointer-events: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .input-wrapper:focus-within { background: #fff; border-color: #dadce0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        
+        textarea {
+            flex: 1; border: none; background: transparent; padding: 0 8px; margin-bottom: 2px;
+            font-size: 15px; resize: none; height: 24px; max-height: 150px; 
+            outline: none; font-family: inherit; color: var(--text-main); line-height: 24px; overflow-y: auto;
+        }
+        
+        #file-input { display: none; }
+        .icon-btn {
+            width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: #5f6368; border-radius: 50%; flex-shrink: 0;
+            transition: background 0.2s, color 0.2s; margin-bottom: -3px;
+        }
+        .icon-btn:hover { background: rgba(0,0,0,0.06); color: #202124; }
+        .send-btn { color: var(--primary-color); opacity: 0.4; pointer-events: none; }
+        .send-btn.active { opacity: 1; pointer-events: auto; }
+
+        .preview-area {
+            width: 100%; display: flex; gap: 8px; overflow-x: auto;
+            padding: 0 4px 8px 4px; min-height: 0; transition: all 0.3s; opacity: 0; pointer-events: none;
+        }
+        .preview-area.has-images { opacity: 1; pointer-events: auto; }
+        .preview-item {
+            position: relative; width: 56px; height: 56px; border-radius: 8px;
+            border: 1px solid #dadce0; background-size: cover; background-position: center; flex-shrink: 0; background-color: #fff;
+        }
+        .preview-close {
+            position: absolute; top: -5px; right: -5px; width: 16px; height: 16px;
+            background: #5f6368; color: white; border-radius: 50%; font-size: 12px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            border: 2px solid #fff; z-index: 2; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        /* 设置侧边栏 */
+        .settings-sidebar {
+            width: 320px; background-color: white; border-left: 1px solid var(--border-color);
+            display: block; height: 100%; overflow-y: auto; flex-shrink: 0;
+            position: relative; z-index: 40; transition: transform 0.3s ease;
+        }
+        .settings-inner { padding: 24px; display: flex; flex-direction: column; min-height: 100%; }
+        .config-label { font-size: 13px; color: #5f6368; margin-bottom: 10px; display: block; font-weight: 600; letter-spacing: 0.5px; }
+
+        .provider-collapse { border: 1px solid #dadce0; border-radius: 8px; margin-bottom: 16px; overflow: hidden; flex-shrink: 0; }
+        .provider-collapse summary {
+            padding: 12px 16px; background: #f8f9fa; cursor: pointer; font-size: 13px; font-weight: 600; color: #444;
+            display: flex; justify-content: space-between; align-items: center; outline: none;
+        }
+        .provider-collapse summary:hover { background: #f1f3f4; }
+        .provider-collapse[open] summary { border-bottom: 1px solid #dadce0; }
+        .provider-content { padding: 16px; background: #fff; }
+        
+        .provider-selector, .api-input-group input { width: 100%; padding: 8px; border: 1px solid #dadce0; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
+        .provider-list { max-height: 120px; overflow-y: auto; margin-bottom: 15px; border: 1px solid #eee; border-radius: 6px; background: #fff; }
+        .provider-item { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #f1f1f1; cursor: pointer; display: flex; justify-content: space-between; }
+        .provider-item:hover { background: #f1f3f4; }
+        .provider-item.selected { background: #e8f0fe; color: #1a73e8; }
+        
+        .action-row { display: flex; gap: 8px; }
+        .config-btn { flex: 1; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; font-size: 12px; background: #fff; color: #444; }
+        .config-btn.primary { background: #1a73e8; color: white; border-color: #1a73e8; }
+        .config-btn.danger { color: #d93025; border-color: #fce8e6; }
+
+        .res-selector { display: flex; gap: 8px; margin-bottom: 24px; flex-shrink: 0; }
+        .res-btn { flex: 1; padding: 8px 0; text-align: center; border: 1px solid #dadce0; border-radius: 6px; font-size: 12px; cursor: pointer; color: #444; }
+        .res-btn.active { border-color: #1a73e8; background-color: #e8f0fe; color: #1a73e8; font-weight: 500; }
+        
+        /* 修复长宽比网格样式 */
+        .ratio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; flex-shrink: 0; }
+        .ratio-card { border: 1px solid #dadce0; border-radius: 8px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #fff; }
+        .ratio-card.active { border-color: #1a73e8; background-color: #e8f0fe; }
+        .icon-box { border: 2px solid #9aa0a6; margin-bottom: 4px; border-radius: 2px; box-sizing: content-box; }
+        .ratio-card.active .icon-box { border-color: #1a73e8; }
+        .ratio-text { font-size: 10px; color: #5f6368; }
+        
+        /* 恢复所有图标样式 */
+        .icon-auto { width: 14px; height: 14px; border-style: dashed; }
+        .icon-1-1 { width: 14px; height: 14px; }
+        .icon-21-9 { width: 20px; height: 8px; }
+        .icon-16-9 { width: 18px; height: 10px; }
+        .icon-4-3 { width: 16px; height: 12px; }
+        .icon-3-2 { width: 18px; height: 12px; }
+        .icon-5-4 { width: 15px; height: 12px; }
+        .icon-9-16 { width: 10px; height: 18px; }
+        .icon-3-4 { width: 12px; height: 16px; }
+        .icon-2-3 { width: 12px; height: 18px; }
+        .icon-4-5 { width: 12px; height: 15px; }
+
+        .generated-image { max-height: 400px; width: auto; max-width: 100%; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); cursor: zoom-in; border: 1px solid #f0f0f0; display: block; }
+        .img-result-group { display: flex; flex-direction: column; align-items: flex-start; margin-top: 8px; width: 100%; }
+        
+        details.thought-box { background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; overflow: hidden; width: 100%; display: block; clear: both;}
+        details.thought-box summary { padding: 10px 14px; cursor: pointer; font-size: 13px; color: #5f6368; font-weight: 500; display: flex; align-items: center; outline: none; }
+        details.thought-box summary::-webkit-details-marker { display: none; }
+        details.thought-box summary::before { content: '▶'; font-size: 10px; margin-right: 8px; transition: transform 0.2s; display: inline-block; color: #999; }
+        details.thought-box[open] summary::before { transform: rotate(90deg); }
+        .thought-content { padding: 12px 16px; font-size: 13px; line-height: 1.6; color: #444; border-top: 1px solid #eee; font-family: monospace; white-space: pre-wrap; background-color: #fff; }
+        
+        .btn-group { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;}
+        .tool-btn { 
+            display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; 
+            background: #fff; color: #5f6368; border: 1px solid #dadce0; 
+            border-radius: 16px; font-size: 12px; text-decoration: none; cursor: pointer; transition: all 0.2s; font-weight: 500;
+        }
+        .tool-btn:hover { background: #f8f9fa; color: #1a73e8; border-color: #d2e3fc; }
+        .tool-btn.download { color: #1a73e8; border-color: #dadce0; }
+        .tool-btn.slice-btn { color: #d93025; border-color: #fad2cf; background: #fff0f0; }
+        .tool-btn.slice-btn:hover { background: #fce8e6; border-color: #d93025; }
+
+        .lightbox-overlay { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; }
+        .lightbox-overlay.active { display: flex; animation: fadeIn 0.2s; }
+        .lightbox-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .lightbox-close { position: absolute; top: 24px; right: 24px; color: white; font-size: 32px; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+        
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 30; display: none; backdrop-filter: blur(2px); }
+        .overlay.active { display: block; }
+        
+        .loading-spinner { width: 20px; height: 20px; border: 2px solid #e0e0e0; border-top-color: var(--primary-color); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- 图片分割工具专用样式 --- */
+        #slice-modal {
+            position: fixed; inset: 0; z-index: 3000; background: #ffffff;
+            display: none; flex-direction: column; align-items: center;
+            padding-top: var(--header-height);
+        }
+        #slice-modal.active { display: flex; }
+        
+        .slice-header-bar {
+            position: absolute; top: 0; left: 0; right: 0; height: var(--header-height);
+            border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;
+            padding: 0 24px; background: #fff; z-index: 10;
+        }
+        .slice-title { font-size: 18px; color: #202124; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+        .slice-close { 
+            width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: #5f6368; transition: background 0.2s;
+        }
+        .slice-close:hover { background: #f1f3f4; color: #202124; }
+
+        .slice-toolbar {
+            width: 100%; max-width: 1000px; padding: 16px 24px;
+            display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap;
+            background: #fff; border-bottom: 1px solid #f0f0f0; margin-bottom: 20px; flex-shrink: 0;
+        }
+        
+        .slice-btn-group { display: flex; gap: 4px; background: #f1f3f4; padding: 4px; border-radius: 8px; align-items: center; }
+        .radio-label {
+            padding: 6px 12px; cursor: pointer; font-size: 13px; color: #5f6368; border-radius: 6px; 
+            transition: all 0.2s; font-weight: 500; display: flex; align-items: center; gap: 6px;
+        }
+        .radio-label:hover { color: #202124; background: rgba(255,255,255,0.5); }
+        .radio-label input { margin: 0; }
+        .radio-label.active { background: #fff; color: #1a73e8; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+
+        .slice-action-btn {
+            padding: 8px 20px; cursor: pointer; border: none; border-radius: 20px; font-size: 13px; font-weight: 500;
+            transition: all 0.2s; display: flex; align-items: center; gap: 6px; text-decoration: none;
+        }
+        .slice-action-btn.primary { background-color: #1a73e8; color: white; box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3); }
+        .slice-action-btn.primary:disabled { background-color: #dadce0; color: #fff; cursor: not-allowed; box-shadow: none; }
+        .slice-action-btn.secondary { background-color: #fff; color: #5f6368; border: 1px solid #dadce0; }
+        .slice-action-btn.download-all { background-color: #1e8e3e; color: white; }
+        .slice-action-btn.download-all:hover { background-color: #188038; }
+        .slice-action-btn.download-all:disabled { background-color: #dadce0; }
+
+        .slice-scroll-area { flex: 1; width: 100%; overflow-y: auto; padding: 0 20px 60px 20px; display: flex; flex-direction: column; align-items: center; }
+        #slice-editor-container {
+            flex-shrink: 0; position: relative; box-shadow: 0 4px 24px rgba(0,0,0,0.08); 
+            background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%);
+            background-color: #fff; background-size: 20px 20px; background-position: 0 0, 10px 10px;
+            user-select: none; margin-bottom: 30px; border-radius: 8px; overflow: hidden; border: 1px solid #dadce0; max-width: 100%;
+            min-height: 100px; /* 确保空状态有高度 */
+        }
+        #slice-empty-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888; cursor: pointer; z-index: 5; }
+        #slice-source-image { display: block; max-width: 100%; max-height: 65vh; pointer-events: none; }
+        #slice-overlay-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+
+        /* 辅助线 */
+        .split-line { position: absolute; background-color: #1a73e8; z-index: 10; pointer-events: auto; touch-action: none; }
+        .split-line.horizontal { width: 100%; height: 2px; cursor: row-resize; }
+        .split-line.horizontal::after { content: ''; position: absolute; top: -10px; bottom: -10px; width: 100%; left: 0; } /* 增大点击热区 */
+        .split-line.vertical { height: 100%; width: 2px; cursor: col-resize; }
+        .split-line.vertical::after { content: ''; position: absolute; left: -10px; right: -10px; height: 100%; top: 0; } /* 增大点击热区 */
+        
+        .delete-btn-line {
+            position: absolute; width: 28px; height: 28px; background: #d93025; color: white; border-radius: 50%; text-align: center; line-height: 26px; font-size: 16px; cursor: pointer; z-index: 12; display: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 2px solid white;
+        }
+        .split-line:hover .delete-btn-line, .split-line:active .delete-btn-line { display: block; }
+
+        /* 结果网格 */
+        #slice-result-grid { 
+            width: 100%; max-width: 1200px; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-top: 20px; 
+        }
+        .slice-card { background: #fff; border: 1px solid #eee; border-radius: 12px; overflow: hidden; transition: transform 0.2s; cursor: pointer; position: relative; }
+        .slice-card:hover { transform: translateY(-4px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-color: #d2e3fc; }
+        .slice-img-result { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; background: #f8f9fa; }
+        .slice-info { padding: 8px; font-size: 11px; color: #5f6368; text-align: center; border-top: 1px solid #f0f0f0; background: #fff; }
+        .download-hint { position: absolute; inset: 0; background: rgba(26, 115, 232, 0.05); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+        .slice-card:hover .download-hint { opacity: 1; }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .mobile-header { display: flex; }
+            .desktop-header { display: none; }
+            .sidebar-nav { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); box-shadow: 5px 0 15px rgba(0,0,0,0.1); padding-top: 0; }
+            .sidebar-nav.open { transform: translateX(0); }
+            .settings-sidebar { position: fixed; right: 0; top: 0; bottom: 0; transform: translateX(100%); box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding-top: 20px; }
+            .settings-sidebar.open { transform: translateX(0); }
+            .main-area { padding-top: var(--header-height); }
+            .chat-container { padding: 20px 0 140px 0; }
+            .message-row { padding: 0 16px; }
+            .input-container-outer { padding: 0 16px; bottom: 16px; }
+            .slice-toolbar { flex-direction: column; gap: 12px; align-items: stretch; }
+            .slice-btn-group { width: 100%; justify-content: center; }
+            .slice-action-btn { justify-content: center; }
+            #slice-result-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+            
+            /* 移动端删除按钮始终显示（如果有选中状态的话），或者热区更大 */
+            .delete-btn-line { display: block; transform: scale(0.8); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 移动端 Header -->
+    <div class="mobile-header">
+        <div onclick="toggleLeftSidebar()" style="padding:8px; cursor:pointer;">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </div>
+        <span style="font-weight:bold; font-size:16px;">Gemini-3-pro-image-preview</span>
+        <div onclick="toggleSettings()" style="padding:8px; cursor:pointer;">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="closeAllSidebars()"></div>
+
+    <nav class="sidebar-nav" id="left-sidebar">
+        <div class="new-chat-btn" onclick="createNewSession()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>新建对话</span>
+        </div>
+        
+        <div class="new-chat-btn feature-btn" onclick="activateStickerMode()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            <span>制作表情包</span>
+        </div>
+
+        <!-- 切片工具入口 -->
+        <div class="new-chat-btn tool-nav-btn" onclick="SlicerTool.openLocal()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+            <span>图片切片/九宫格</span>
+        </div>
+
+        <div style="padding:0 12px; font-size:11px; font-weight:600; color:#5f6368; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; margin-top: 10px;">最近对话</div>
+        <div class="session-list" id="session-list"></div>
+    </nav>
+
+    <main class="main-area">
+        <div class="desktop-header">
+            <div class="brand-area">
+                <!-- Google Logo SVG -->
+                <svg class="brand-logo-small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                <span>Gemini 3 Pro</span>
+            </div>
+            <div class="header-actions">
+                <div class="header-icon-btn" title="新建对话" onclick="createNewSession()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </div>
+                <div class="header-icon-btn" title="设置" onclick="toggleSettings()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-container" id="chat-history">
+            <div class="empty-state" id="empty-state">
+                <!-- 大号 Google Logo -->
+                <svg class="google-logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                <h1>gemini-3-pro-image-preview</h1>
+                <p>并发生成 · 4K 渲染 · 本地存储</p>
+            </div>
+        </div>
+
+        <div class="input-container-outer">
+            <div class="preview-area" id="preview-area"></div>
+            <div class="input-wrapper">
+                <div class="icon-btn" title="上传参考图" onclick="document.getElementById('file-input').click()">
+                    <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <input type="file" id="file-input" accept="image/*" multiple onchange="handleFiles(this.files)">
+                <textarea id="user-input" placeholder="描述画面..." rows="1"></textarea>
+                <div class="icon-btn send-btn" id="send-btn" onclick="sendMessage()">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <aside class="settings-sidebar" id="right-sidebar">
+        <div class="settings-inner">
+            <h2 style="font-size:16px; font-weight:600; margin-bottom:24px; color:#202124;">绘图设置</h2>
+            
+            <details class="provider-collapse">
+                <summary>API 渠道管理</summary>
+                <div class="provider-content">
+                    <label class="config-label" style="color:#1967d2;">当前使用渠道</label>
+                    <select id="provider-select" class="provider-selector" onchange="ProviderManager.select(this.value)">
+                        <option value="random">🎲 随机优选 (自动轮询)</option>
+                    </select>
+
+                    <label class="config-label" style="margin-top:10px;">渠道列表</label>
+                    <div id="provider-list" class="provider-list"></div>
+                    
+                    <div class="api-input-group">
+                        <input type="hidden" id="p-id">
+                        <input type="text" id="p-name" placeholder="渠道名称 (如: 官方API)">
+                        <input type="text" id="p-host" placeholder="API Base URL (https://...)">
+                        <input type="password" id="p-key" placeholder="API Key (sk-...)">
+                        <input type="text" id="p-model" placeholder="Model (e.g. gemini-3-pro-image-preview)">
+                    </div>
+                    <div class="action-row">
+                        <button class="config-btn" onclick="ProviderManager.clearForm()">清空/新增</button>
+                        <button class="config-btn primary" onclick="ProviderManager.save()">保存渠道</button>
+                        <button class="config-btn danger" onclick="ProviderManager.del()">删除</button>
+                    </div>
+                </div>
+            </details>
+
+            <label class="config-label">分辨率</label>
+            <div class="res-selector">
+                <div class="res-btn" data-val="1024x1024">1K</div>
+                <div class="res-btn" data-val="2048x2048">2K</div>
+                <div class="res-btn active" data-val="4K">4K</div>
+            </div>
+
+            <label class="config-label">长宽比 (默认 Auto)</label>
+            <div class="ratio-grid">
+                <div class="ratio-card active" data-val="auto"><div class="icon-box icon-auto"></div><span class="ratio-text">Auto</span></div>
+                <div class="ratio-card" data-val="21:9"><div class="icon-box icon-21-9"></div><span class="ratio-text">21:9</span></div>
+                <div class="ratio-card" data-val="16:9"><div class="icon-box icon-16-9"></div><span class="ratio-text">16:9</span></div>
+                <div class="ratio-card" data-val="3:2"><div class="icon-box icon-3-2"></div><span class="ratio-text">3:2</span></div>
+                <div class="ratio-card" data-val="4:3"><div class="icon-box icon-4-3"></div><span class="ratio-text">4:3</span></div>
+                <div class="ratio-card" data-val="5:4"><div class="icon-box icon-5-4"></div><span class="ratio-text">5:4</span></div>
+                <div class="ratio-card" data-val="1:1"><div class="icon-box icon-1-1"></div><span class="ratio-text">1:1</span></div>
+                <div class="ratio-card" data-val="4:5"><div class="icon-box icon-4-5"></div><span class="ratio-text">4:5</span></div>
+                <div class="ratio-card" data-val="3:4"><div class="icon-box icon-3-4"></div><span class="ratio-text">3:4</span></div>
+                <div class="ratio-card" data-val="2:3"><div class="icon-box icon-2-3"></div><span class="ratio-text">2:3</span></div>
+                <div class="ratio-card" data-val="9:16"><div class="icon-box icon-9-16"></div><span class="ratio-text">9:16</span></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 内置图片分割器 -->
+    <div id="slice-modal">
+        <div class="slice-header-bar">
+            <div class="slice-title">
+                <svg width="22" height="22" style="margin-right:8px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+                图片分割工厂
+            </div>
+            <div class="slice-close" onclick="SlicerTool.close()">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </div>
+        </div>
+
+        <div class="slice-scroll-area">
+            <div class="slice-toolbar">
+                <input type="file" id="slice-file-input" accept="image/*" style="display:none" onchange="SlicerTool.handleFile(this.files)">
+                <button class="slice-action-btn secondary" onclick="document.getElementById('slice-file-input').click()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    更换图片
+                </button>
+                
+                <div class="slice-btn-group">
+                    <label class="radio-label active" onclick="SlicerTool.setMode('horizontal', this)">
+                        <input type="radio" name="slice-mode" value="horizontal" checked> <span>横线 —</span>
+                    </label>
+                    <label class="radio-label" onclick="SlicerTool.setMode('vertical', this)">
+                        <input type="radio" name="slice-mode" value="vertical"> <span>竖线 |</span>
+                    </label>
+                </div>
+
+                <div class="slice-btn-group">
+                    <label class="radio-label" style="display:flex; align-items:center; gap:4px;">
+                        <input type="checkbox" id="slice-force-square" style="margin:0;"> <span>1:1 补全</span>
+                    </label>
+                    <div id="slice-color-picker-box" style="display:none; align-items: center; padding: 0 8px;">
+                        <input type="color" id="slice-bg-color" value="#ffffff" style="width:24px; height:24px; padding:0; border:none; cursor:pointer;">
+                    </div>
+                </div>
+
+                <button class="slice-action-btn secondary" id="slice-clear-btn">清空辅助线</button>
+                <button class="slice-action-btn primary" id="slice-process-btn" disabled>⚡ 生成切片</button>
+                
+                <button class="slice-action-btn download-all" id="slice-download-all-btn" disabled onclick="SlicerTool.downloadAll()">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    一键打包下载
+                </button>
+            </div>
+
+            <div id="slice-editor-container">
+                <!-- 空状态提示 -->
+                <div id="slice-empty-msg" onclick="document.getElementById('slice-file-input').click()">
+                    <div style="margin-bottom:10px;">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#dadce0" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    </div>
+                    <div>点击上传本地图片</div>
+                </div>
+                <img id="slice-source-image" src="" alt="Source" style="display:none;">
+                <div id="slice-overlay-canvas"></div>
+            </div>
+
+            <div id="slice-result-grid"></div>
+        </div>
+    </div>
+
+    <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox()">
+        <span class="lightbox-close">&times;</span>
+        <img class="lightbox-img" id="lightbox-image" src="" onclick="event.stopPropagation()">
+    </div>
+
+<script>
+    function escapeHtml(text) { return text.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }
+    async function loadJSZip() { if (window.JSZip) return; await new Promise((r, j) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload = r; s.onerror = j; document.head.appendChild(s); }); }
+
+    const BlobManager = {
+        urls: [],
+        create(blob) { const url = URL.createObjectURL(blob); this.urls.push(url); return url; },
+        cleanup() { this.urls.forEach(url => URL.revokeObjectURL(url)); this.urls = []; }
+    };
+
+    // --- Slicer Tool Logic ---
+    const SlicerTool = {
+        horizontalLines: [], verticalLines: [], isDragging: false, draggedLine: null, generatedBlobs: [],
+
+        init() {
+            this.modal = document.getElementById('slice-modal');
+            this.fileInput = document.getElementById('slice-file-input');
+            this.editorContainer = document.getElementById('slice-editor-container');
+            this.sourceImage = document.getElementById('slice-source-image');
+            this.emptyMsg = document.getElementById('slice-empty-msg');
+            this.overlay = document.getElementById('slice-overlay-canvas');
+            this.processBtn = document.getElementById('slice-process-btn');
+            this.clearBtn = document.getElementById('slice-clear-btn');
+            this.resultGrid = document.getElementById('slice-result-grid');
+            this.modeRadios = document.getElementsByName('slice-mode');
+            this.forceSquareCheckbox = document.getElementById('slice-force-square');
+            this.colorPickerBox = document.getElementById('slice-color-picker-box');
+            this.bgColorInput = document.getElementById('slice-bg-color');
+            this.downloadAllBtn = document.getElementById('slice-download-all-btn');
+
+            this.bindEvents();
+        },
+
+        // 打开并自动触发文件选择（用于本地上传按钮）
+        openLocal() {
+            this.modal.classList.add('active');
+            this.resetEditor();
+            this.sourceImage.src = "";
+            this.sourceImage.style.display = 'none';
+            this.emptyMsg.style.display = 'flex'; // 显示空状态点击提示
+            
+            // 自动点击上传虽然方便，但可能被浏览器拦截，还是让用户点一下界面比较稳妥
+            // 或者是直接在UI上引导
+            if(window.innerWidth > 768) { // 桌面端体验较好可以尝试自动触发
+                setTimeout(() => this.fileInput.click(), 100);
+            }
+            closeAllSidebars();
+        },
+
+        // 通过 Base64 打开（用于从聊天记录打开）
+        open(base64Image) {
+            this.modal.classList.add('active');
+            this.emptyMsg.style.display = 'none';
+            this.sourceImage.src = base64Image;
+            this.sourceImage.style.display = 'block';
+            this.sourceImage.onload = () => {
+                this.resetEditor();
+                this.autoGrid(6, 4);
+            };
+        },
+
+        close() { this.modal.classList.remove('active'); },
+
+        resetEditor() {
+            this.overlay.innerHTML = '';
+            this.horizontalLines = []; this.verticalLines = [];
+            this.resultGrid.innerHTML = '';
+            this.processBtn.disabled = false;
+            this.downloadAllBtn.disabled = true;
+            this.generatedBlobs = [];
+            this.emptyMsg.style.display = this.sourceImage.style.display === 'none' ? 'flex' : 'none';
+        },
+
+        autoGrid(rows, cols) {
+            for (let i = 1; i < rows; i++) this.addLine('h', (i / rows) * 100);
+            for (let j = 1; j < cols; j++) this.addLine('v', (j / cols) * 100);
+        },
+
+        handleFile(files) {
+            const file = files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                this.emptyMsg.style.display = 'none';
+                this.sourceImage.style.display = 'block';
+                this.sourceImage.src = event.target.result;
+                this.sourceImage.onload = () => this.resetEditor();
+            };
+            reader.readAsDataURL(file);
+        },
+
+        setMode(type, labelEl) {
+            document.querySelectorAll('.radio-label').forEach(l => l.classList.remove('active'));
+            labelEl.classList.add('active');
+            labelEl.querySelector('input').checked = true;
+        },
+        
+        getPointerPos(e) {
+            return (e.touches && e.touches.length > 0) ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
+        },
+
+        bindEvents() {
+            this.forceSquareCheckbox.addEventListener('change', (e) => this.colorPickerBox.style.display = e.target.checked ? 'flex' : 'none');
+
+            this.overlay.addEventListener('click', (e) => {
+                if (this.isDragging || e.target !== this.overlay) return;
+                const rect = this.overlay.getBoundingClientRect();
+                const pos = this.getPointerPos(e);
+                const x = pos.x - rect.left; const y = pos.y - rect.top;
+                let mode = 'horizontal'; for(const r of this.modeRadios) if(r.checked) mode = r.value;
+                if (mode === 'horizontal') this.addLine('h', (y / rect.height) * 100); else this.addLine('v', (x / rect.width) * 100);
+            });
+
+            this.clearBtn.addEventListener('click', () => { this.overlay.innerHTML = ''; this.horizontalLines = []; this.verticalLines = []; });
+            this.processBtn.addEventListener('click', () => this.process());
+        },
+
+        addLine(type, percent) {
+            const line = document.createElement('div');
+            line.classList.add('split-line', type === 'h' ? 'horizontal' : 'vertical');
+            const delBtn = document.createElement('div'); delBtn.className = 'delete-btn-line'; delBtn.innerText = '×';
+            
+            if(type === 'h') {
+                line.style.top = percent + '%'; delBtn.style.right = '0'; delBtn.style.top = '-12px';
+                this.horizontalLines.push({ percent: percent, element: line });
+            } else {
+                line.style.left = percent + '%'; delBtn.style.bottom = '-12px'; delBtn.style.left = '-12px';
+                this.verticalLines.push({ percent: percent, element: line });
+            }
+
+            delBtn.addEventListener('click', (e) => { e.stopPropagation(); this.removeLine(line, type); });
+            delBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); this.removeLine(line, type); });
+            
+            line.appendChild(delBtn);
+            // 绑定 Touchstart 和 Mousedown
+            line.addEventListener('mousedown', (e) => this.startDrag(e, line, type));
+            line.addEventListener('touchstart', (e) => this.startDrag(e, line, type));
+            this.overlay.appendChild(line);
+        },
+
+        removeLine(element, type) {
+            element.remove();
+            if (type === 'h') this.horizontalLines = this.horizontalLines.filter(l => l.element !== element);
+            else this.verticalLines = this.verticalLines.filter(l => l.element !== element);
+        },
+
+        startDrag(e, element, type) {
+            e.stopPropagation(); this.isDragging = true; this.draggedLine = { element, type };
+            const moveHandler = (ev) => this.onDrag(ev);
+            const upHandler = () => {
+                this.isDragging = false; this.draggedLine = null;
+                document.removeEventListener('mousemove', moveHandler); document.removeEventListener('mouseup', upHandler);
+                document.removeEventListener('touchmove', moveHandler); document.removeEventListener('touchend', upHandler);
+                setTimeout(() => { this.isDragging = false }, 50);
+            };
+            document.addEventListener('mousemove', moveHandler); document.addEventListener('mouseup', upHandler);
+            document.addEventListener('touchmove', moveHandler, { passive: false }); document.addEventListener('touchend', upHandler);
+        },
+
+        onDrag(e) {
+            if (!this.isDragging || !this.draggedLine) return;
+            if (e.type === 'touchmove') e.preventDefault(); // 阻止滚动
+            const rect = this.overlay.getBoundingClientRect(); const pos = this.getPointerPos(e);
+            let percent;
+
+            if (this.draggedLine.type === 'h') {
+                let y = Math.max(0, Math.min(pos.y - rect.top, rect.height));
+                percent = (y / rect.height) * 100;
+                this.draggedLine.element.style.top = percent + '%';
+                const lineObj = this.horizontalLines.find(l => l.element === this.draggedLine.element);
+                if(lineObj) lineObj.percent = percent;
+            } else {
+                let x = Math.max(0, Math.min(pos.x - rect.left, rect.width));
+                percent = (x / rect.width) * 100;
+                this.draggedLine.element.style.left = percent + '%';
+                const lineObj = this.verticalLines.find(l => l.element === this.draggedLine.element);
+                if(lineObj) lineObj.percent = percent;
+            }
+        },
+
+        process() {
+            this.resultGrid.innerHTML = '<div style="width:100%;text-align:center;padding:20px;color:#666;">⚡ 正在处理...</div>';
+            this.generatedBlobs = [];
+
+            const imgRealWidth = this.sourceImage.naturalWidth; const imgRealHeight = this.sourceImage.naturalHeight;
+            const isForceSquare = this.forceSquareCheckbox.checked; const fillColor = this.bgColorInput.value;
+
+            let hCuts = this.horizontalLines.map(l => (l.percent / 100) * imgRealHeight); hCuts.push(0, imgRealHeight); hCuts.sort((a, b) => a - b);
+            let vCuts = this.verticalLines.map(l => (l.percent / 100) * imgRealWidth); vCuts.push(0, imgRealWidth); vCuts.sort((a, b) => a - b);
+
+            setTimeout(() => {
+                this.resultGrid.innerHTML = '';
+                const fragment = document.createDocumentFragment(); 
+
+                for (let i = 0; i < hCuts.length - 1; i++) {
+                    for (let j = 0; j < vCuts.length - 1; j++) {
+                        const srcX = vCuts[j]; const srcY = hCuts[i];
+                        const srcW = vCuts[j+1] - vCuts[j]; const srcH = hCuts[i+1] - hCuts[i];
+                        if (srcW < 1 || srcH < 1) continue; 
+
+                        const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                        if (isForceSquare) {
+                            const maxDim = Math.max(srcW, srcH);
+                            canvas.width = maxDim; canvas.height = maxDim; ctx.fillStyle = fillColor; ctx.fillRect(0, 0, maxDim, maxDim);
+                            ctx.drawImage(this.sourceImage, srcX, srcY, srcW, srcH, (maxDim - srcW) / 2, (maxDim - srcH) / 2, srcW, srcH);
+                        } else {
+                            canvas.width = srcW; canvas.height = srcH;
+                            ctx.drawImage(this.sourceImage, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+                        }
+
+                        canvas.toBlob(blob => {
+                            const blobUrl = BlobManager.create(blob);
+                            const itemName = `slice_${i+1}_${j+1}.png`;
+                            this.generatedBlobs.push({ blob: blob, name: itemName });
+                            if(this.generatedBlobs.length > 0) this.downloadAllBtn.disabled = false;
+
+                            const card = document.createElement('div'); card.className = 'slice-card';
+                            const img = document.createElement('img'); img.src = blobUrl; img.className = 'slice-img-result';
+                            const info = document.createElement('div'); info.className = 'slice-info'; info.innerText = `${Math.round(canvas.width)} x ${Math.round(canvas.height)}`;
+                            
+                            card.onclick = () => { const a = document.createElement('a'); a.href = blobUrl; a.download = itemName; a.click(); };
+                            card.appendChild(img); card.appendChild(info); fragment.appendChild(card); this.resultGrid.appendChild(card);
+                        }, 'image/png');
+                    }
+                }
+            }, 50);
+        },
+
+        async downloadAll() {
+            if(this.generatedBlobs.length === 0) return;
+            if(typeof JSZip === 'undefined') { try { await loadJSZip(); } catch(e) { alert('JSZip 加载失败'); return; } }
+            const zip = new JSZip(); const folder = zip.folder("slices");
+            this.generatedBlobs.forEach(item => folder.file(item.name, item.blob));
+            const content = await zip.generateAsync({type:"blob"});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(content); a.download = `slices_${Date.now()}.zip`; a.click();
+        }
+    };
+
+    // --- Provider & Chat Logic (Existing) ---
+    const ProviderManager={providers:[],activeId:'random',init(){try{this.providers=JSON.parse(localStorage.getItem('gemini_providers')||'[]');this.activeId=localStorage.getItem('gemini_active_provider')||'random';const oldHost=localStorage.getItem('api-host');if(oldHost&&this.providers.length===0){this.providers.push({id:'legacy_'+Date.now(),name:'默认渠道',host:oldHost,key:localStorage.getItem('api-key')||'',model:localStorage.getItem('model-name')||'gemini-3-pro-image-preview'});this.saveToStorage()}}catch(e){console.error(e);this.providers=[]}this.renderUI()},saveToStorage(){localStorage.setItem('gemini_providers',JSON.stringify(this.providers));localStorage.setItem('gemini_active_provider',this.activeId)},renderUI(){const select=document.getElementById('provider-select');select.innerHTML='<option value="random">🎲 随机优选 (自动轮询)</option>';this.providers.forEach(p=>{const opt=document.createElement('option');opt.value=p.id;opt.text=p.name;if(p.id===this.activeId)opt.selected=true;select.appendChild(opt)});if(this.activeId==='random')select.value='random';const list=document.getElementById('provider-list');list.innerHTML='';this.providers.forEach(p=>{const div=document.createElement('div');div.className='provider-item';div.innerHTML=`<span>${escapeHtml(p.name)}</span> <span style="color:#999; font-size:10px;">${escapeHtml(p.model)}</span>`;div.onclick=()=>this.loadForm(p);list.appendChild(div)})},loadForm(provider){document.getElementById('p-id').value=provider.id;document.getElementById('p-name').value=provider.name;document.getElementById('p-host').value=provider.host;document.getElementById('p-key').value=provider.key;document.getElementById('p-model').value=provider.model;const items=document.querySelectorAll('.provider-item');items.forEach(el=>{if(el.textContent.includes(provider.name))el.classList.add('selected');else el.classList.remove('selected')})},clearForm(){document.getElementById('p-id').value='';document.getElementById('p-name').value='';document.getElementById('p-host').value='';document.getElementById('p-key').value='';document.getElementById('p-model').value='';document.querySelectorAll('.provider-item').forEach(el=>el.classList.remove('selected'))},save(){const id=document.getElementById('p-id').value;const name=document.getElementById('p-name').value.trim();const host=document.getElementById('p-host').value.trim();const key=document.getElementById('p-key').value.trim();const model=document.getElementById('p-model').value.trim();if(!name||!host||!key||!model){alert("所有字段必填");return}if(id){const idx=this.providers.findIndex(p=>p.id===id);if(idx>-1)this.providers[idx]={id,name,host,key,model}}else{this.providers.push({id:'p_'+Date.now(),name,host,key,model})}this.saveToStorage();this.renderUI();this.clearForm()},del(){const id=document.getElementById('p-id').value;if(!id)return;if(!confirm("确定删除该渠道?"))return;this.providers=this.providers.filter(p=>p.id!==id);if(this.activeId===id)this.activeId='random';this.saveToStorage();this.renderUI();this.clearForm()},select(val){this.activeId=val;localStorage.setItem('gemini_active_provider',val)},getConfig(){if(this.providers.length===0)return null;if(this.activeId==='random'||!this.providers.find(p=>p.id===this.activeId)){const idx=Math.floor(Math.random()*this.providers.length);return this.providers[idx]}else{return this.providers.find(p=>p.id===this.activeId)}}};
+    const DB_NAME='GeminiProDB';const DB_VERSION=2;let db=null;let currentSessionId=null;const activeGenerations=new Set();function initDB(){return new Promise((resolve,reject)=>{const request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=(e)=>{const db=e.target.result;if(!db.objectStoreNames.contains('sessions'))db.createObjectStore('sessions',{keyPath:'id'});if(!db.objectStoreNames.contains('messages')){const msgStore=db.createObjectStore('messages',{keyPath:'id',autoIncrement:true});msgStore.createIndex('sessionId','sessionId',{unique:false})}};request.onsuccess=(e)=>{db=e.target.result;resolve(db)};request.onerror=(e)=>reject(e)})}async function getAllSessions(){return new Promise((resolve)=>{const tx=db.transaction('sessions','readonly');const req=tx.objectStore('sessions').getAll();req.onsuccess=()=>resolve(req.result.sort((a,b)=>b.id-a.id))})}async function getSessionMessages(sessionId){return new Promise((resolve)=>{const tx=db.transaction('messages','readonly');const index=tx.objectStore('messages').index('sessionId');const req=index.getAll(sessionId);req.onsuccess=()=>resolve(req.result)})}async function saveMessage(sessionId,role,content,images=[],rawHtml=null){return new Promise((resolve)=>{const tx=db.transaction('messages','readwrite');const req=tx.objectStore('messages').add({sessionId,role,content,images,rawHtml,timestamp:Date.now()});req.onsuccess=()=>resolve()})}async function createSession(title="新对话"){const id=Date.now();const tx=db.transaction('sessions','readwrite');tx.objectStore('sessions').add({id,title,timestamp:id});return id}async function deleteSession(sessionId){const tx=db.transaction(['sessions','messages'],'readwrite');tx.objectStore('sessions').delete(sessionId);const index=tx.objectStore('messages').index('sessionId');index.openCursor(IDBKeyRange.only(sessionId)).onsuccess=(e)=>{const cursor=e.target.result;if(cursor){cursor.delete();cursor.continue()}};return new Promise(resolve=>tx.oncomplete=resolve)}async function updateSessionTitle(sessionId,title){const tx=db.transaction('sessions','readwrite');const store=tx.objectStore('sessions');store.get(sessionId).onsuccess=(e)=>{const data=e.target.result;if(data){data.title=title;store.put(data)}}}
+
+    const UI={chatHistory:document.getElementById('chat-history'),emptyState:document.getElementById('empty-state'),sessionList:document.getElementById('session-list'),textarea:document.getElementById('user-input'),fileInput:document.getElementById('file-input'),previewArea:document.getElementById('preview-area'),sendBtn:document.getElementById('send-btn')};const state={images:[],resolution:'4K',aspectRatio:'auto'};
+    window.onload=async()=>{ProviderManager.init();SlicerTool.init();await initDB();await renderSessionList();const sessions=await getAllSessions();if(sessions.length>0)await loadSession(sessions[0].id);else await createNewSession()};
+    function activateStickerMode(){createNewSession("表情包制作").then(()=>{const stickerPrompt="为我生成图中角色的绘制 Q 版的，LINE 风格的半身像表情包，注意头饰要正确\n彩色手绘风格，使用 4x6 布局，涵盖各种各样的常用聊天语句，或是一些有关的娱乐 meme\n其他需求：不要原图复制。所有标注为手写简体中文。";UI.textarea.value=stickerPrompt;state.resolution='4K';document.querySelectorAll('.res-btn').forEach(b=>b.classList.remove('active'));document.querySelector('.res-btn[data-val="4K"]').classList.add('active');state.aspectRatio='16:9';document.querySelectorAll('.ratio-card').forEach(c=>c.classList.remove('active'));document.querySelector('.ratio-card[data-val="16:9"]').classList.add('active');alert("已进入表情包模式！\n请点击输入框左侧图标上传一张角色参考图，然后点击发送。");adjustTextareaHeight();checkInput();if(window.innerWidth<=768)closeAllSidebars()})}
+    async function renderSessionList(){const sessions=await getAllSessions();UI.sessionList.innerHTML='';sessions.forEach(s=>{const div=document.createElement('div');div.className=`session-item ${s.id===currentSessionId?'active':''}`;if(activeGenerations.has(s.id))div.classList.add('generating');div.innerHTML=`<div style="display:flex; align-items:center; overflow:hidden; width:100%;"><span class="session-loading">⏳</span><span style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(s.title)}</span></div><div class="session-delete" onclick="event.stopPropagation(); removeSession(${s.id})">×</div>`;div.onclick=()=>loadSession(s.id);UI.sessionList.appendChild(div)})}
+    async function loadSession(sessionId){currentSessionId=sessionId;UI.chatHistory.innerHTML='';UI.emptyState.style.display='none';BlobManager.cleanup();renderSessionList();const messages=await getSessionMessages(sessionId);if(messages.length===0){UI.chatHistory.appendChild(UI.emptyState);UI.emptyState.style.display='flex'}else{messages.forEach(msg=>appendMessageToUI(msg.role,msg.rawHtml,msg.content,msg.images));UI.chatHistory.scrollTop=UI.chatHistory.scrollHeight}if(activeGenerations.has(sessionId))appendMessageToUI('bot','<div class="loading-spinner" id="temp-loading" style="margin-left:20px;"></div>');if(window.innerWidth<=768)closeAllSidebars()}
+    async function createNewSession(title="新对话"){const id=await createSession(title);await loadSession(id)}
+    async function removeSession(id){if(!confirm('确定删除此对话？'))return;await deleteSession(id);if(id===currentSessionId){const sessions=await getAllSessions();if(sessions.length>0)await loadSession(sessions[0].id);else await createNewSession()}else{renderSessionList()}}
+    function useAsReference(base64){const mime="image/jpeg";const fullB64=base64.startsWith('data:')?base64:`data:${mime};base64,${base64}`;const rawBase64=fullB64.split(',')[1];state.images.push({base64:rawBase64,mimeType:mime,preview:base64ToBlobUrl(fullB64)});renderPreviews();checkInput();UI.textarea.focus();window.scrollTo(0,document.body.scrollHeight)}
+    function appendMessageToUI(role,html,rawText=null,rawImages=[]){const div=document.createElement('div');div.className=`message-row ${role}`;let finalContentHtml=html;if(role==='bot')finalContentHtml=`<div style="display:flex; flex-direction:column; width:100%; align-items:flex-start;">${html}</div>`;let finalHtml=`<div class="message-bubble-container">${finalContentHtml}</div>`;if(role==='user'){const escapedRawText=rawText?escapeHtml(rawText):'';finalHtml+=`<div class="msg-actions"><div class="action-btn" onclick="copyText(this)" data-text="${escapedRawText}"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> 复制</div><div class="action-btn" onclick='handleEdit(${JSON.stringify(rawText||"")}, ${JSON.stringify(rawImages||[])})'><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> 编辑</div><div class="action-btn" onclick='handleRegenerate(${JSON.stringify(rawText||"")}, ${JSON.stringify(rawImages||[])})'><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg> 重新生成</div></div>`}div.innerHTML=finalHtml;div.querySelectorAll('img.generated-image').forEach(img=>img.onclick=()=>openLightbox(img.src));UI.chatHistory.appendChild(div);UI.chatHistory.scrollTop=UI.chatHistory.scrollHeight;return div}
+    function copyText(btn){navigator.clipboard.writeText(btn.getAttribute('data-text')).then(()=>{const original=btn.innerHTML;btn.innerHTML='<span>已复制</span>';setTimeout(()=>btn.innerHTML=original,1500)})}
+    function adjustTextareaHeight(){UI.textarea.style.height='auto';const maxHeight=150;const scrollHeight=UI.textarea.scrollHeight;if(scrollHeight>maxHeight){UI.textarea.style.height=maxHeight+'px';UI.textarea.style.overflowY='auto'}else{UI.textarea.style.height=scrollHeight+'px';UI.textarea.style.overflowY='hidden'}}
+    function handleEdit(text,imagesBase64){UI.textarea.value=text;state.images=[];imagesBase64.forEach(b64=>{const mime="image/jpeg";state.images.push({base64:b64,mimeType:mime,preview:base64ToBlobUrl(`data:${mime};base64,${b64}`)})});renderPreviews();checkInput();adjustTextareaHeight();UI.textarea.focus();UI.textarea.scrollTop=UI.textarea.scrollHeight}
+    function handleRegenerate(text,imagesBase64){handleEdit(text,imagesBase64);sendMessage()}
+    async function sendMessage(){if(!currentSessionId)await createNewSession();const text=UI.textarea.value.trim();const hasImgs=state.images.length>0;if(!text&&!hasImgs)return;const config=ProviderManager.getConfig();if(!config){alert("请先在右侧设置中添加 API 渠道");toggleSettings();return}UI.emptyState.style.display='none';let userHtml='';if(hasImgs){let imgHtml=`<div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; margin-bottom:5px; width:100%">`;state.images.forEach(img=>imgHtml+=`<img src="${img.preview}" style="width:60px; height:60px; object-fit:cover; border-radius:8px;">`);imgHtml+=`</div>`;userHtml+=imgHtml}if(text)userHtml+=`<div class="msg-content">${escapeHtml(text).replace(/\n/g,'<br>')}</div>`;if(hasImgs&&text)userHtml=`<div style="display:flex; flex-direction:column; align-items:flex-end; width:100%">${userHtml}</div>`;const currentImagesBase64=state.images.map(i=>i.base64);const currentText=text;const thisSessionId=currentSessionId;UI.textarea.value='';UI.textarea.style.height='24px';UI.textarea.style.overflowY='auto';state.images=[];renderPreviews();checkInput();appendMessageToUI('user',userHtml,currentText,currentImagesBase64);await saveMessage(thisSessionId,'user',currentText,currentImagesBase64,userHtml);const msgs=await getSessionMessages(thisSessionId);if(msgs.length<=1&&currentText){const newTitle=currentText.substring(0,20)+(currentText.length>20?'...':'');updateSessionTitle(thisSessionId,newTitle);renderSessionList()}let loadingDiv=null;if(thisSessionId===currentSessionId){const loadingHtml='<div class="loading-spinner" style="margin-left:20px;"></div>';loadingDiv=appendMessageToUI('bot',loadingHtml)}activeGenerations.add(thisSessionId);renderSessionList();processGeneration(config,currentText,currentImagesBase64,loadingDiv,thisSessionId)}
+    async function processGeneration(config,text,imagesBase64,loadingDiv,sessionId){const parts=text?[{text}]:[{text:"Generate image"}];imagesBase64.forEach(b64=>{parts.push({inline_data:{mime_type:'image/jpeg',data:b64}})});const generationConfig={responseModalities:["TEXT","IMAGE"],imageConfig:{imageSize:state.resolution}};if(state.aspectRatio&&state.aspectRatio!=='auto')generationConfig.imageConfig.aspectRatio=state.aspectRatio;const payload={contents:[{role:"user",parts:parts}],generationConfig:generationConfig};try{const res=await fetch(`${config.host.replace(/\/$/,'')}/v1beta/models/${config.model}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':config.key},body:JSON.stringify(payload)});const data=await res.json();activeGenerations.delete(sessionId);renderSessionList();if(!res.ok)throw new Error(JSON.stringify(data));let botInnerHtml='';if(data.candidates?.[0]?.content?.parts){data.candidates[0].content.parts.forEach(part=>{if(part.inlineData&&part.inlineData.mimeType.startsWith('image/')){const fullBase64=`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;const blobUrl=base64ToBlobUrl(fullBase64);const now=new Date();const filename=`gemini_${now.getTime()}.png`;botInnerHtml+=`<div class="msg-content" style="padding:0"><div class="img-result-group"><img class="generated-image" src="${fullBase64}"><div class="btn-group"><a class="tool-btn download" href="${blobUrl}" download="${filename}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 下载原图</a><div class="tool-btn" onclick='useAsReference("${fullBase64}")'><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> 设为参考图</div><div class="tool-btn slice-btn" onclick='SlicerTool.open("${fullBase64}")'><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3L6 21"/><path d="M18 3L18 21"/><path d="M2 12L22 12"/></svg> 切割/表情包</div></div></div></div>`}else if(part.text){botInnerHtml+=`<div class="msg-content" style="padding:0; width:100%"><details class="thought-box"><summary>Thinking / Output</summary><div class="thought-content">${escapeHtml(part.text)}</div></details></div>`}})}if(botInnerHtml){await saveMessage(sessionId,'bot','Image Generated',[],botInnerHtml);if(sessionId===currentSessionId){if(loadingDiv)loadingDiv.remove();const tempLoading=document.getElementById('temp-loading');if(tempLoading)tempLoading.parentElement.remove();appendMessageToUI('bot',botInnerHtml)}}}catch(e){activeGenerations.delete(sessionId);renderSessionList();let msg=e.message;try{const jsonErr=JSON.parse(e.message);if(jsonErr.error&&jsonErr.error.message)msg=jsonErr.error.message}catch(_){}const errorHtml=`<div class="msg-content" style="color:#d93025">❌ Error: ${escapeHtml(msg)}</div>`;await saveMessage(sessionId,'bot','Error',[],errorHtml);if(sessionId===currentSessionId){if(loadingDiv)loadingDiv.remove();appendMessageToUI('bot',errorHtml)}}}
+    function base64ToBlobUrl(base64Data){try{const arr=base64Data.split(',');const mime=arr[0].match(/:(.*?);/)[1];const bstr=atob(arr[1]);let n=bstr.length;const u8arr=new Uint8Array(n);while(n--){u8arr[n]=bstr.charCodeAt(n)}return BlobManager.create(new Blob([u8arr],{type:mime}))}catch(e){console.error(e);return''}}
+    function openLightbox(src){document.getElementById('lightbox-image').src=src;document.getElementById('lightbox').classList.add('active')}
+    function closeLightbox(){document.getElementById('lightbox').classList.remove('active');setTimeout(()=>document.getElementById('lightbox-image').src='',200)}
+    const leftSidebar=document.getElementById('left-sidebar');const rightSidebar=document.getElementById('right-sidebar');const overlay=document.getElementById('overlay');
+    function toggleLeftSidebar(){leftSidebar.classList.toggle('open');overlay.classList.toggle('active');rightSidebar.classList.remove('open')}
+    function toggleSettings(){rightSidebar.classList.toggle('open');overlay.classList.toggle('active');leftSidebar.classList.remove('open')}
+    function closeAllSidebars(){leftSidebar.classList.remove('open');rightSidebar.classList.remove('open');overlay.classList.remove('active')}
+    UI.textarea.addEventListener('input',function(){adjustTextareaHeight();checkInput()});UI.textarea.addEventListener('keydown',(e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}});function checkInput(){if(UI.textarea.value.trim().length>0||state.images.length>0)UI.sendBtn.classList.add('active');else UI.sendBtn.classList.remove('active')}
+    document.querySelectorAll('.res-btn').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.res-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');state.resolution=btn.dataset.val}));document.querySelectorAll('.ratio-card').forEach(card=>card.addEventListener('click',()=>{document.querySelectorAll('.ratio-card').forEach(c=>c.classList.remove('active'));card.classList.add('active');state.aspectRatio=card.dataset.val}));
+    async function handleFiles(files){if(state.images.length+files.length>14){alert("最多14张");return}for(let file of files){if(!file.type.startsWith('image/'))continue;state.images.push(await compressImage(file))}renderPreviews();checkInput();UI.fileInput.value=''}
+    function compressImage(file){return new Promise((resolve)=>{const reader=new FileReader();reader.readAsDataURL(file);reader.onload=(e)=>{const img=new Image();img.src=e.target.result;img.onload=()=>{let w=img.width,h=img.height,max=1536;if(file.size<1024*1024&&w<max&&h<max){resolve({base64:e.target.result.split(',')[1],mimeType:file.type,preview:e.target.result});return}if(w>h){if(w>max){h*=max/w;w=max}}else{if(h>max){w*=max/h;h=max}}const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);const dataUrl=canvas.toDataURL('image/jpeg',0.85);resolve({base64:dataUrl.split(',')[1],mimeType:'image/jpeg',preview:dataUrl})}}})}
+    function renderPreviews(){UI.previewArea.innerHTML='';if(state.images.length>0){UI.previewArea.classList.add('has-images');state.images.forEach((img,i)=>{const div=document.createElement('div');div.className='preview-item';div.style.backgroundImage=`url(${img.preview})`;div.innerHTML=`<div class="preview-close" onclick="state.images.splice(${i},1);renderPreviews();checkInput()">×</div>`;UI.previewArea.appendChild(div)})}else UI.previewArea.classList.remove('has-images')}
+</script>
+</body>
+</html>
