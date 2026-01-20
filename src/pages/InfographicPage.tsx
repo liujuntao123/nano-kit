@@ -4,219 +4,179 @@ import { useAppStore } from '../store/appStore'
 import { buildDynamicImageModel, downloadImage, nativeFetch } from '../utils/helpers'
 import { usePageHeader } from '../components/layout/PageHeaderContext'
 
-type StylePreset = {
+type InfographicStylePreset = {
   id: string
   name: string
-  desc: string
-  bestFor: string
-  reference: {
-    colors: string[]
-    background: string[]
-    accents: string[]
-    elements: string[]
-  }
-  palette: {
-    primary: string
-    background: string
-    accent: string
-  }
-  previewBg: string
+  tag: string
+  preview: string
+  background: string
+  visual_style: string
+  word_style: string
+  content_principle: string
+  negative_space: string
 }
 
-type IllustrationBlock = {
+type InfographicBlock = {
   id: string
-  kind: 'cover' | 'content' | 'ending'
   title: string
   source: string
   prompt: string
   imageData?: string
 }
 
-type BodyCountOption = 'auto' | 1 | 2 | 3 | 4 | 6 | 8 | 10
-
-type LayoutPreset = {
-  id: 'sparse' | 'balanced' | 'dense' | 'list' | 'comparison' | 'flow'
-  name: string
-  desc: string
-  bestFor: string
-  keyPoints: string[]
+type InfographicSection = {
+  heading: string
+  points: string[]
+  data: string[]
 }
 
-const STYLE_PRESETS: StylePreset[] = [
+const STYLE_PRESETS: InfographicStylePreset[] = [
   {
-    id: 'cute',
-    name: '甜美可爱（默认）',
-    desc: '小红书经典甜酷少女感',
-    bestFor: '美妆/穿搭/生活方式/日常小技巧',
-    reference: {
-      colors: ['粉色 (#FED7E2)', '蜜桃 (#FEEBC8)', '薄荷绿 (#C6F6D5)', '薰衣草紫 (#E9D8FD)'],
-      background: ['奶油白 (#FFFAF0)', '柔粉 (#FFF5F7)'],
-      accents: ['亮粉', '珊瑚色'],
-      elements: ['爱心', '星星', '闪光', '贴纸风元素', '可爱表情', '丝带装饰', 'emoji图标']
-    },
-    palette: { primary: '#FED7E2', background: '#FFFAF0', accent: '#F56565' },
-    previewBg: '/style-previews/cute.jpeg'
+    id: 'hand-drawn-visual-notes',
+    name: '手绘视觉笔记',
+    tag: '手绘,笔记,创意',
+    preview: '/previews/hand-drawn-visual-notes.jpg',
+    background: '背景为微黄的格纹纸或点阵纸纹理。',
+    visual_style: '「手绘视觉笔记」风格的信息图,使用马克笔、钢笔、圆珠笔质感的线条，包含随手画圆圈或强调线。',
+    word_style: '标题使用富有活力的手写体，正文使用整齐的小型手写字，重点词汇使用亮色荧光笔划线或染色。',
+    content_principle: '将抽象概念具象化为生动的角色或场景物件，保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '保持约25%的页边距，模拟真实笔记本的视觉感受。'
   },
   {
-    id: 'fresh',
-    name: '清新自然',
-    desc: '干净、清爽、呼吸感强',
-    bestFor: '健康/养生/自律/极简生活/自我关怀',
-    reference: {
-      colors: ['薄荷绿 (#9AE6B4)', '天空蓝 (#90CDF4)', '浅黄 (#FAF089)'],
-      background: ['纯白 (#FFFFFF)', '柔薄荷 (#F0FFF4)'],
-      accents: ['叶绿', '水蓝'],
-      elements: ['植物叶片', '云朵', '水滴', '简单几何', '大留白/开放式构图']
-    },
-    palette: { primary: '#9AE6B4', background: '#FFFFFF', accent: '#90CDF4' },
-    previewBg: '/style-previews/fresh.jpeg'
+    id: 'modern-vector-flat',
+    name: '现代矢量扁平插图',
+    tag: '扁平,矢量,现代',
+    preview: '/previews/modern-vector-flat.jpg',
+    background: '背景为纯净的浅色。',
+    visual_style: '「现代矢量扁平插图」风格的信息图,采用2.5D（等距视角）或纯扁平化风格。',
+    word_style: '使用无衬线现代字体，标题大而醒目，正文配有高饱和度的简约图标。',
+    content_principle: '将抽象概念具象化为生动的角色或场景物件；数据使用彩虹色的图表。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '布局平衡，四周保持均衡的呼吸感。'
   },
   {
-    id: 'tech',
-    name: '科技数码',
-    desc: '现代、聪明、数字感',
-    bestFor: 'AI/工具推荐/效率方法/数码产品',
-    reference: {
-      colors: ['深蓝 (#1A365D)', '紫色 (#6B46C1)', '电光青 (#00D4FF)'],
-      background: ['深灰 (#1A202C)', '近黑 (#0D1117)'],
-      accents: ['霓虹绿 (#00FF88)', '电蓝'],
-      elements: ['电路纹理', '数据图标', '几何网格', '微发光效果', '科技装饰线']
-    },
-    palette: { primary: '#1A365D', background: '#0D1117', accent: '#00D4FF' },
-    previewBg: '/style-previews/tech.jpeg'
+    id: 'black-neon',
+    name: '黑色荧光笔',
+    tag: '暗黑,霓虹,科技',
+    preview: '/previews/black-neon.jpg',
+    background: '背景为深黑色哑光质感或深灰磨砂底。',
+    visual_style: '「黑色荧光笔」风格的信息图,使用具有发光特效（Neon）的极简线条；连接线如同发光的导线或光束。',
+    word_style: '标题使用细长的未来感字体，文字呈现出半透明的发光感。',
+    content_principle: '将抽象概念具象化为生动的角色或场景物件；保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '适当留白，营造出深邃且聚焦的沉浸感。'
   },
   {
-    id: 'warm',
-    name: '温暖治愈',
-    desc: '松弛、友好、亲和',
-    bestFor: '生活感悟/个人故事/情绪价值/关系与成长',
-    reference: {
-      colors: ['暖橙 (#ED8936)', '金黄 (#F6AD55)', '陶土橙 (#C05621)'],
-      background: ['奶油白 (#FFFAF0)', '柔桃色 (#FED7AA)'],
-      accents: ['深棕 (#744210)', '柔红'],
-      elements: ['阳光光晕', '咖啡/生活小物', '暖光效果', '圆润装饰', '友好图标']
-    },
-    palette: { primary: '#ED8936', background: '#FFFAF0', accent: '#744210' },
-    previewBg: '/style-previews/warm.jpeg'
+    id: 'healing-journal',
+    name: '治愈系手帐',
+    tag: '治愈,手帐,温馨',
+    preview: '/previews/healing-journal.jpg',
+    background: '背景为带有纤维感的水彩纸或浅粉、浅棕色背景。',
+    visual_style: '「治愈系手帐」风格的信息图,边缘带有水彩晕染感作为装饰。',
+    word_style: '标题使用可爱的圆润手写体，文字颜色避免生硬的黑色。',
+    content_principle: '将抽象概念具象化为生动的角色或场景物件。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '采用错落有致的布局，在留白区域点缀少量手绘装饰元素。'
   },
   {
-    id: 'bold',
-    name: '强烈冲击',
-    desc: '高对比、抓眼、强调重点',
-    bestFor: '重要提醒/避坑/必看清单/高能结论',
-    reference: {
-      colors: ['亮红 (#E53E3E)', '明橙 (#DD6B20)', '电黄 (#F6E05E)'],
-      background: ['纯黑 (#000000)', '深炭黑'],
-      accents: ['白色', '霓虹黄'],
-      elements: ['感叹号', '箭头', '警示图标', '强形状', '夸张对比', '戏剧化构图']
-    },
-    palette: { primary: '#E53E3E', background: '#000000', accent: '#F6E05E' },
-    previewBg: '/style-previews/bold.jpeg'
+    id: 'expert-whiteboard',
+    name: '专家白板教学',
+    tag: '白板,教学,专业',
+    preview: '/previews/expert-whiteboard.jpg',
+    background: '整个背景为一个纯净完整的白色平面或浅灰色网格平面。',
+    visual_style: '「专家白板教学」风格的信息图,使用马克笔手绘质感的线条、箭头和简化形象来构建结构清晰的信息图。',
+    word_style: '标题使用粗体手写风格，正文精简，使用不同颜色的马克笔区分重点。',
+    content_principle: '如果涉及具体形象，用抽象的简笔画替代；保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '保持适当留白，避免拥挤，确保一眼能看清逻辑流向。'
   },
   {
-    id: 'minimal',
-    name: '极简高级',
-    desc: '克制、干净、有质感',
-    bestFor: '严肃内容/职业建议/表达清晰的总结卡',
-    reference: {
-      colors: ['纯黑 (#000000)', '纯白 (#FFFFFF)'],
-      background: ['微灰 (#FAFAFA)', '纯白'],
-      accents: ['单一强调色（从内容中选取）'],
-      elements: ['细线条', '单一视觉中心', '最大留白', '极简装饰']
-    },
-    palette: { primary: '#000000', background: '#FAFAFA', accent: '#3B82F6' },
-    previewBg: '/style-previews/minimal.jpeg'
+    id: 'naval-modular',
+    name: '纳瓦尔式·模块手绘',
+    tag: '模块,系统,思维',
+    preview: '/previews/naval-modular.jpg',
+    background: '背景为纯净的白色，顶部有紫色的手绘波浪线作为标题装饰。',
+    visual_style: '「纳瓦尔式·模块手绘」风格的信息图,采用网格化布局，每个概念被封装在独立的方框中；配以简约的彩色手绘图标（如：沙漏、天平、靶心、齿轮），线条细而连贯，局部填充低饱和度的马卡龙色。',
+    word_style: '标题使用粗重的黑体手写感字体，正文使用纤细、整齐的手写体，逻辑连接词使用深色加粗强调。',
+    content_principle: '将复杂系统拆解为「层级」或「池」，使用箭头表示流向，并在底部点缀可爱的表情符号。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '布局紧凑且平衡，模块之间保持精准的等距间隙，营造出一种逻辑清晰、有条不紊的「操作系统」感。'
   },
   {
-    id: 'retro',
-    name: '复古怀旧',
-    desc: '复古潮流、旧报纸/做旧纸感',
-    bestFor: '怀旧内容/经典建议/复盘总结',
-    reference: {
-      colors: ['做旧橙（muted orange）', '灰粉 (#FED7E2 70%)', '复古青（faded teal）'],
-      background: ['做旧纸 (#F5E6D3)', '棕褐/sepia'],
-      accents: ['褪色红', '复古金'],
-      elements: ['半色调点阵', '复古徽章', '胶带效果', '做旧纹理叠层']
-    },
-    palette: { primary: '#DD6B20', background: '#F5E6D3', accent: '#C9A962' },
-    previewBg: '/style-previews/retro.jpeg'
+    id: 'blackboard-comic',
+    name: '黑板漫画板书',
+    tag: '黑板,漫画,课堂',
+    preview: '/previews/blackboard-comic.jpg',
+    background: '背景为深灰色或墨绿色的磨砂黑板，带有真实的粉笔擦拭残留痕迹。',
+    visual_style: '「黑板漫画板书」风格的信息图,采用类似分镜漫画的四宫格或六宫格布局，边框为白粉笔手绘线条；角色使用极简的火柴人，逻辑线由带有箭头的粉笔线构成。',
+    word_style: '标题使用大号白色粉笔字体，正文使用较细的白色手写字体，重点词汇使用橙色、黄色或淡绿色粉笔进行高亮标注。',
+    content_principle: '通过「老师提问、学生回答」或「物体交互」的场景来具象化抽象概念；保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '在面板边缘留出黑板的厚度感，营造出一种在课堂现场即兴推演的叙事感。'
   },
   {
-    id: 'pop',
-    name: '潮流爆款',
-    desc: '高饱和、活力、漫画感',
-    bestFor: '强互动/有趣知识/热点玩法/教程吸睛版',
-    reference: {
-      colors: ['亮红 (#F56565)', '亮黄 (#ECC94B)', '亮蓝 (#4299E1)', '亮绿 (#48BB78)'],
-      background: ['白色 (#FFFFFF)', '浅灰'],
-      accents: ['霓虹粉', '电紫'],
-      elements: ['漫画气泡', '爆炸星芒', '粗线条形状', '动态构图', '高能效果贴纸']
-    },
-    palette: { primary: '#F56565', background: '#FFFFFF', accent: '#805AD5' },
-    previewBg: '/style-previews/pop.jpeg'
+    id: 'cornell-notes-stickers',
+    name: '康奈尔笔记·多色贴纸',
+    tag: '康奈尔,贴纸,学习',
+    preview: '/previews/cornell-notes-stickers.jpg',
+    background: '背景为带有米色格纹的康奈尔笔记本页面，左侧留有边注栏。',
+    visual_style: '「康奈尔笔记·多色贴纸」风格的信息图,核心内容分布在黄色、蓝色、粉色的彩色便利贴上，带有微弱的阴影和胶带粘贴痕迹；包含手绘的坐标轴曲线、金字塔结构图和简易图标（如垃圾桶、机器人）。',
+    word_style: '标题使用黑色马克笔体，正文使用黑色中性笔体，重点概念下方会有亮黄色荧光笔的半透明划线色块。',
+    content_principle: '左侧放置关键字（Keywords），右侧放置详细笔记（Note），底部放置总结或实践建议。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '模拟真实的笔记排版，边缘会有手动留出的页边距，并在空白处点缀「灯泡」或「感叹号」等提醒小图。'
   },
   {
-    id: 'notion',
-    name: '知识手绘',
-    desc: '极简线稿、知识卡片感',
-    bestFor: '知识分享/概念解释/生产力/效率技巧',
-    reference: {
-      colors: ['黑色 (#1A1A1A)', '深灰 (#4A4A4A)'],
-      background: ['纯白 (#FFFFFF)', '微灰 (#FAFAFA)'],
-      accents: ['粉彩蓝 (#A8D4F0)', '粉彩黄 (#F9E79F)', '粉彩粉 (#FADBD8)'],
-      elements: ['简线涂鸦', '轻微手绘抖动', '几何形状', '火柴人', '最大留白']
-    },
-    palette: { primary: '#1A1A1A', background: '#FFFFFF', accent: '#A8D4F0' },
-    previewBg: '/style-previews/notion.jpeg'
+    id: 'bilingual-encyclopedia',
+    name: '百科图鉴',
+    tag: '双语,百科,专业',
+    preview: '/previews/bilingual-encyclopedia.jpg',
+    background: '背景为极简的浅灰色，具有轻微的纸张肌理感。',
+    visual_style: '「双语百科图鉴」风格的信息图,将摄影实拍图与现代数据图表结合。使用简约的线条图标。',
+    word_style: '标题采用粗体黑体，副标题为中英双语对照，正文使用排版严谨的无衬线体，色彩方案克制。',
+    content_principle: '保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '严格的模块化布局，保持清晰的阅读分割线，左右边距对称，视觉极其专业。'
+  },
+  {
+    id: 'chinese-painting-style',
+    name: '国风绘本',
+    tag: '国风,工笔,传统',
+    preview: '/previews/chinese-painting-style.jpg',
+    background: '背景为带有宣纸纹理的底色，四周有云纹或古典边框。',
+    visual_style: '「国风绘本」风格的信息图,采用精细的工笔重彩画风格。',
+    word_style: '标题使用带衬线的金色或米白色仿宋体/楷体，加方括号装饰。正文为清晰的印刷体，底部配以生动的概念性插画。',
+    content_principle: '保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '四周留有装饰性边框空间，中心区域排版紧凑，强调传统美学沉浸感。'
+  },
+  {
+    id: 'modern-info-card',
+    name: '现代风格说明卡',
+    tag: '玻璃拟态,3D,科技',
+    preview: '/previews/modern-info-card.jpg',
+    background: '背景为带有微弱发光的浅蓝色或纯白色实验室风格。',
+    visual_style: '「现代风格说明卡」风格的信息图,采用玻璃拟态（Glassmorphism）和3D质感图标。包含实拍图、信息图表。色彩方案以简约大气主。',
+    word_style: '标题醒目。正文使用现代黑体，配以简洁的功能性图标。',
+    content_principle: '保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '模块间具有明显的圆角矩形边界，视觉通透，具有高度的科学性和信赖感。'
+  },
+  {
+    id: 'ancient-manuscript',
+    name: '古籍纸张',
+    tag: '古籍,水墨,历史',
+    preview: '/previews/ancient-manuscript.jpg',
+    background: '背景为发黄、有褶皱感的陈年卷轴或古籍纸张。',
+    visual_style: '「古籍纸张」风格的信息图,采用白描或水墨笔触的形象以及装饰。',
+    word_style: '标题使用书法字体，正文使用竖排或仿宋印刷体。出处和功效采用传统的卷轴或印章式框选。',
+    content_principle: '保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '上下留白较多，中心图文分布类似古代字帖，带有浓郁的历史韵味。'
+  },
+  {
+    id: 'natural-encyclopedia-card',
+    name: '自然百科卡片',
+    tag: '自然,百科,清新',
+    preview: '/previews/natural-encyclopedia-card.jpg',
+    background: '背景为柔和的暖色渐变（如浅绿到淡橘色的过渡）。',
+    visual_style: '「自然百科卡片」风格的信息图,采用写实照，采用圆角卡片布局。包含各类统计图表。图标采用简约的线性填充风。',
+    word_style: '标题巨大且有分量感。正文使用深灰色易读字体，数值部分加粗放大。底部带有品牌化Logo标识。',
+    content_principle: '网格化模块呈现信息。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
+    negative_space: '各功能模块之间呼吸感强，色彩清新，适合在社交媒体或健康百科中展示。'
   }
 ]
 
-const LAYOUT_PRESETS: LayoutPreset[] = [
-  {
-    id: 'sparse',
-    name: '稀疏',
-    desc: '信息少，冲击强',
-    bestFor: '封面/结尾、1-2 个重点',
-    keyPoints: ['1-2 个重点', '留白 50%+', '大标题/大图标', '强视觉中心']
-  },
-  {
-    id: 'balanced',
-    name: '平衡',
-    desc: '标准卡片结构',
-    bestFor: '3-4 个要点、常规内容页',
-    keyPoints: ['3-4 个要点', '结构清晰', '图文平衡', '易阅读']
-  },
-  {
-    id: 'dense',
-    name: '密集',
-    desc: '高信息密度干货卡',
-    bestFor: '5-8 个要点、总结/清单/速查',
-    keyPoints: ['5-8 个要点', '分区网格', '信息层级强', '留白 20-30%']
-  },
-  {
-    id: 'list',
-    name: '列表',
-    desc: '枚举/排行结构',
-    bestFor: '4-7 项清单、工具推荐',
-    keyPoints: ['编号列表', '每项 1 行核心', '统一结构', '高亮关键词']
-  },
-  {
-    id: 'comparison',
-    name: '对比',
-    desc: '左右对照',
-    bestFor: 'A/B 对比、优缺点、前后变化',
-    keyPoints: ['左右分栏', '对照清晰', '差异高亮', '同维度对齐']
-  },
-  {
-    id: 'flow',
-    name: '流程',
-    desc: '步骤/时间线',
-    bestFor: '3-6 步流程、方法/教程',
-    keyPoints: ['步骤编号', '箭头引导', '一步一图标', '起承转合']
-  }
-]
-
-export default function XHSImagesPage() {
+export default function InfographicPage() {
   const navigate = useNavigate()
   const {
     showToast,
@@ -239,24 +199,20 @@ export default function XHSImagesPage() {
 
   useEffect(() => {
     setHeader({
-      title: 'XHS配图',
-      description: '将内容拆解为小红书可滑动信息图系列，生成可直接生图的提示词',
+      title: '信息图',
+      description: '将内容整理成单页高密度信息图，生成可直接生图的提示词',
       actions: headerActions
     })
     return () => setHeader(null)
   }, [setHeader, headerActions])
 
   const [article, setArticle] = useState('')
-  const [includeCover, setIncludeCover] = useState(true)
-  const [includeEnding, setIncludeEnding] = useState(true)
-  const [bodyCount, setBodyCount] = useState<BodyCountOption>('auto')
   const [styleId, setStyleId] = useState<'auto' | string>('auto')
-  const [layoutId, setLayoutId] = useState<'auto' | string>('auto')
   const [quality, setQuality] = useState<'1K' | '2K' | '4K'>('2K')
   const [ratio, setRatio] = useState<'2.35:1' | '3:4' | '1:1' | '4:3' | '16:9' | '9:16'>('16:9')
   const [isConfigOpen, setIsConfigOpen] = useState(true)
 
-  const [blocks, setBlocks] = useState<IllustrationBlock[]>([])
+  const [blocks, setBlocks] = useState<InfographicBlock[]>([])
   const [extracting, setExtracting] = useState(false)
 
   const articleFileRef = useRef<HTMLInputElement>(null)
@@ -264,7 +220,7 @@ export default function XHSImagesPage() {
   const gallerySessionPromiseRef = useRef<Promise<number> | null>(null)
 
   const buildGallerySessionTitle = () => {
-    const fallback = 'XHS配图'
+    const fallback = '信息图'
     const firstLine = article
       .split(/\r?\n/)
       .map(line => line.trim())
@@ -308,50 +264,27 @@ export default function XHSImagesPage() {
     bumpGalleryRefreshKey()
   }
 
-  const autoBodyCount = useMemo(() => {
-    const text = article.trim()
-    if (!text) return 4
-
-    const headingCount = Array.from(text.matchAll(/^#{1,6}\s+\S.+$/gm)).length
-    const sectionCount = Math.max(0, headingCount - 1)
-
-    if (sectionCount >= 8) return 10
-    if (sectionCount >= 6) return 8
-    if (sectionCount >= 4) return 6
-    if (sectionCount >= 3) return 4
-    if (sectionCount >= 2) return 3
-
-    const len = text.replace(/\s+/g, '').length
-    if (len <= 800) return 1
-    if (len <= 2000) return 2
-    if (len <= 4000) return 3
-    if (len <= 7000) return 4
-    if (len <= 12000) return 6
-    return 8
-  }, [article])
-
-  const resolvedBodyCount = useMemo(
-    () => (bodyCount === 'auto' ? autoBodyCount : bodyCount),
-    [bodyCount, autoBodyCount]
-  )
-
   const autoStyleId = useMemo(() => {
     const text = article.trim().toLowerCase()
-    if (!text) return 'cute'
+    if (!text) return 'hand-drawn-visual-notes'
 
     const rules: Array<{ id: string; keywords: string[] }> = [
-      { id: 'cute', keywords: ['美妆', '护肤', '化妆', '穿搭', '时尚', '少女', '女孩', '粉', 'pink', 'cute', 'girly'] },
-      { id: 'fresh', keywords: ['健康', '养生', '自律', '清新', '自然', '轻食', 'wellness', 'self-care', 'organic', 'clean'] },
-      { id: 'tech', keywords: ['ai', 'aigc', 'llm', '大模型', '人工智能', '算法', '数据', '编程', '代码', '开发', 'app', '工具', 'tool', '效率', '生产力'] },
-      { id: 'warm', keywords: ['生活', '故事', '情绪', '情感', '成长', '治愈', '陪伴', '关系', '日常', '温暖'] },
-      { id: 'bold', keywords: ['警告', '重要', '必须', '避坑', '踩坑', '别再', '风险', '注意', '必看', '必收藏'] },
-      { id: 'minimal', keywords: ['极简', '简洁', '高级', '干净', '专业', '商务', '职场', '策略', '复盘'] },
-      { id: 'retro', keywords: ['复古', '怀旧', '经典', '老派', 'vintage', 'retro', '年代'] },
-      { id: 'pop', keywords: ['惊呆', '震惊', '炸裂', '上头', '好玩', '有趣', 'fun', 'wow', 'amazing', '爆款', '种草'] },
-      { id: 'notion', keywords: ['知识', '概念', '方法论', '生产力', '效率', '笔记', '总结', '框架', 'saaS', 'notion'] }
+      { id: 'hand-drawn-visual-notes', keywords: ['手绘', '视觉笔记', '笔记', '复盘', '总结', '学习', '课程', '思维导图'] },
+      { id: 'modern-vector-flat', keywords: ['矢量', '扁平', '现代', '产品', '商业', '品牌', '流程', '系统', '工具', '平台', '数据'] },
+      { id: 'black-neon', keywords: ['霓虹', '暗黑', '赛博', '黑客', '安全', '未来', '科技'] },
+      { id: 'healing-journal', keywords: ['治愈', '手帐', '温馨', '情绪', '情感', '关系', '日常', '生活'] },
+      { id: 'expert-whiteboard', keywords: ['白板', '教学', '讲解', '课堂', '训练', '教程', '步骤'] },
+      { id: 'naval-modular', keywords: ['系统', '模块', '模型', '方法论', '框架', '思维', '认知', '层级'] },
+      { id: 'blackboard-comic', keywords: ['黑板', '漫画', '板书', '课堂', '老师', '学生', '提问'] },
+      { id: 'cornell-notes-stickers', keywords: ['康奈尔', '贴纸', '学习', '复习', '要点', '考点'] },
+      { id: 'bilingual-encyclopedia', keywords: ['百科', '图鉴', '双语', '词条', '术语', '专业'] },
+      { id: 'chinese-painting-style', keywords: ['国风', '古风', '传统', '文化', '诗词', '东方', '工笔', '水墨'] },
+      { id: 'modern-info-card', keywords: ['说明', '指南', '手册', '实验室', '3d', '玻璃', '配置', '参数'] },
+      { id: 'ancient-manuscript', keywords: ['古籍', '历史', '中医', '草药', '卷轴', '典籍', '文言'] },
+      { id: 'natural-encyclopedia-card', keywords: ['自然', '植物', '动物', '生态', '环境', '健康', '统计', '数据'] }
     ]
 
-    let bestId = 'cute'
+    let bestId = 'hand-drawn-visual-notes'
     let bestScore = 0
     for (const rule of rules) {
       let score = 0
@@ -368,43 +301,13 @@ export default function XHSImagesPage() {
   }, [article])
 
   const autoStyle = useMemo(() => {
-    return STYLE_PRESETS.find(s => s.id === autoStyleId) || STYLE_PRESETS.find(s => s.id === 'cute') || STYLE_PRESETS[0]
+    return STYLE_PRESETS.find(s => s.id === autoStyleId) || STYLE_PRESETS[0]
   }, [autoStyleId])
 
   const selectedStyle = useMemo(() => {
     const effectiveId = styleId === 'auto' ? autoStyleId : styleId
-    return STYLE_PRESETS.find(s => s.id === effectiveId) || STYLE_PRESETS.find(s => s.id === 'cute') || STYLE_PRESETS[0]
+    return STYLE_PRESETS.find(s => s.id === effectiveId) || STYLE_PRESETS[0]
   }, [styleId, autoStyleId])
-
-  const autoLayoutId = useMemo(() => {
-    const text = article.trim().toLowerCase()
-    if (!text) return 'balanced'
-
-    const hasSteps = /(步骤|step\s*\d|\d+\s*[\.、]\s*|流程)/i.test(text)
-    const hasVs = /(vs|对比|比较|优缺点|差异)/i.test(text)
-    const hasList = /(top\s*\d|清单|列表|排名|工具|推荐|必备)/i.test(text)
-    const len = text.replace(/\s+/g, '').length
-
-    if (hasVs) return 'comparison'
-    if (hasSteps) return 'flow'
-    if (hasList) return len > 1500 ? 'dense' : 'list'
-    if (len > 3000) return 'dense'
-    return 'balanced'
-  }, [article])
-
-  const autoLayout = useMemo(() => {
-    return LAYOUT_PRESETS.find(l => l.id === autoLayoutId) || LAYOUT_PRESETS[1]
-  }, [autoLayoutId])
-
-  const selectedLayout = useMemo(() => {
-    const effectiveId = layoutId === 'auto' ? autoLayoutId : layoutId
-    return LAYOUT_PRESETS.find(l => l.id === effectiveId) || LAYOUT_PRESETS[1]
-  }, [layoutId, autoLayoutId])
-
-  const totalCount = useMemo(
-    () => (includeCover ? 1 : 0) + resolvedBodyCount + (includeEnding ? 1 : 0),
-    [includeCover, resolvedBodyCount, includeEnding]
-  )
 
   const handleArticleFile = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -424,7 +327,6 @@ export default function XHSImagesPage() {
     try {
       return JSON.parse(cleaned)
     } catch {
-      // best-effort extract
       const objStart = cleaned.indexOf('{')
       const objEnd = cleaned.lastIndexOf('}')
       if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
@@ -452,14 +354,21 @@ export default function XHSImagesPage() {
     return v as Record<string, any>
   }
 
-  const buildStylePrompt = (style: StylePreset) => {
-    const parts: string[] = [`${style.name}（${style.desc}）`]
-    const ref = style.reference
-    if (ref.colors?.length) parts.push(`颜色：${ref.colors.join('、')}`)
-    if (ref.background?.length) parts.push(`背景：${ref.background.join('、')}`)
-    if (ref.accents?.length) parts.push(`点缀：${ref.accents.join('、')}`)
-    if (ref.elements?.length) parts.push(`元素：${ref.elements.join('、')}`)
-    return parts.join('；')
+  const toStringArray = (v: unknown) => {
+    if (Array.isArray(v)) return v.map(item => toOneLine(item)).filter(Boolean)
+    const single = toOneLine(v)
+    return single ? [single] : []
+  }
+
+  const buildStylePrompt = (style: InfographicStylePreset) => {
+    return [
+      `${style.name}（${style.tag}）`,
+      `背景：${style.background}`,
+      `视觉风格：${style.visual_style}`,
+      `文字风格：${style.word_style}`,
+      `内容原则：${style.content_principle}`,
+      `留白规则：${style.negative_space}`
+    ].join('；')
   }
 
   const inferOrientation = (r: string): 'Landscape (horizontal)' | 'Portrait (vertical)' | 'Square' => {
@@ -472,38 +381,36 @@ export default function XHSImagesPage() {
     return 'Square'
   }
 
-  const buildXhsBasePromptLines = (r: string) => {
+  const buildInfographicBasePromptLines = (r: string) => {
     const orientation = inferOrientation(r)
     return [
-      'Create a Xiaohongshu (Little Red Book) style infographic following these guidelines:',
+      'Create a detailed, information-rich infographic following these guidelines:',
       '',
       '## Image Specifications',
       '',
-      '- Type: Infographic',
+      '- Type: Single-page infographic',
       `- Orientation: ${orientation}`,
       `- Aspect Ratio: ${r}`,
-      '- Style: Hand-drawn illustration',
+      '- Style: Follow the style preset notes provided below',
       '',
       '## Core Principles',
       '',
-      '- Hand-drawn quality throughout - NO realistic or photographic elements',
-      '- If content involves sensitive or copyrighted figures, create stylistically similar alternatives - DO NOT refuse to generate',
-      '- Keep information concise, highlight keywords and core concepts',
-      '- Use ample whitespace for easy visual scanning',
-      '- Maintain clear visual hierarchy',
+      '- Prioritize rich information density while keeping readability and hierarchy',
+      '- Include ALL key points, steps, data values, and specialized terms from the content',
+      '- Visualize information with icons, diagrams, charts, timelines, and labeled illustrations',
+      '- Keep sections aligned with consistent spacing; avoid cluttered overlap',
+      '- Avoid logos, watermarks, brand marks, and UI screenshots unless explicitly requested',
       '',
       '## Text Style (CRITICAL)',
       '',
-      '- ALL text MUST be hand-drawn style',
-      '- Main titles should be prominent and eye-catching',
-      '- Key text should be bold and enlarged',
-      '- Use highlighter effects to emphasize keywords',
-      '- DO NOT use realistic or computer-generated fonts',
+      '- All text must follow the style preset (hand-drawn or specified typography)',
+      '- Titles large and clear; subtitles and body text smaller but readable',
+      '- Highlight keywords with markers, outlines, or color blocks when helpful',
       '',
       '## Language',
       '',
       '- Use the same language as the content provided below',
-      '- Match punctuation style to the content language (Chinese: \"\"，。！)',
+      '- Match punctuation style to the content language',
       '',
       '---',
       '',
@@ -512,118 +419,98 @@ export default function XHSImagesPage() {
   }
 
   const buildPlannerSystemPrompt = (params: {
-    totalCount: number
     ratio: string
-    includeCover: boolean
-    includeEnding: boolean
-    layout: LayoutPreset
-    style: StylePreset
+    style: InfographicStylePreset
   }) => {
-    const { totalCount, ratio, includeCover, includeEnding, layout, style } = params
+    const { ratio, style } = params
 
     const lines: string[] = []
 
-    lines.push('你是一位资深的小红书（XHS / RedNote）信息图策划与提示词工程师。你的产出将直接作为绘图模型（nano banana pro）的输入提示词。')
-    lines.push('请把用户提供的内容拆成可滑动阅读的图文信息图系列（Carousel）。')
-    lines.push('目标：信息层级清晰、留白充分、关键词高亮、文字手写可读。')
+    lines.push('你是一位资深的信息图策划 + 提示词工程师。你的产出将直接作为绘图模型（nano banana pro）的输入提示词。')
+    lines.push('请把用户提供的内容整理成一张「高信息密度」的单页信息图。')
+    lines.push('文字内容要更完整，图像内容要更具体：保留所有原始条目、流程、逻辑关系、数据和专业术语，不得捏造事实或数据。')
     lines.push('')
     lines.push('你需要在脑中完成这些步骤（不要输出步骤文本）：')
-    lines.push('1) 提炼内容主题、受众、痛点/收益点')
-    lines.push('2) 设计滑动节奏：Cover Hook -> Content Value -> Ending CTA')
-    lines.push('3) 每张图只讲 1 个核心信息点；把文字内容写成标题/副标题/要点')
-    lines.push('4) 把每张图拆成可执行的视觉指令：布局分区、图标/插画、层级、留白、配色、高亮')
-    lines.push('5) 生成最终可用提示词（promptLines）时，严格遵循 Base Prompt：手绘信息图、手写字体、高亮关键词')
+    lines.push('1) 提炼主题与层级结构，拆成 4-7 个信息模块（内容较少时可缩减）')
+    lines.push('2) 每个模块输出标题 + 要点 + 数据/指标（若有）')
+    lines.push('3) 设计主视觉 + 多种辅助视觉（图标、图表、流程、对比、标注）')
+    lines.push('4) 规划画面分区、阅读路径、留白与对齐')
+    lines.push('5) 生成最终 promptLines，遵循 Base Prompt 与结构化格式')
     lines.push('')
     lines.push('风格（全程一致）：')
     lines.push(`- style_id: ${style.id}`)
     lines.push(`- style_name: ${style.name}`)
-    lines.push(`- style_desc: ${style.desc}`)
-    lines.push(`- best_for: ${style.bestFor}`)
+    lines.push(`- style_tag: ${style.tag}`)
     lines.push(`- style_keypoints: ${buildStylePrompt(style)}`)
-    lines.push(`- palette: primary ${style.palette.primary}; background ${style.palette.background}; accent ${style.palette.accent}`)
     lines.push('')
     lines.push('画幅：')
     lines.push(`- aspect_ratio: ${ratio}`)
     lines.push('- 在构图字段里明确主体位置、留白与视觉动线（便于缩略图也能看懂）。')
     lines.push('')
-    lines.push('系列结构：')
-    lines.push(includeCover
-      ? '- 第 1 张必须是 cover（封面页）：Hook + 强视觉冲击；信息稀疏但抓眼。'
-      : '- 本次不需要 cover。'
-    )
-    lines.push(includeEnding
-      ? '- 最后 1 张必须是 ending（结尾页）：总结 + CTA + 互动引导（收藏/评论/关注）。'
-      : '- 本次不需要 ending。'
-    )
-    lines.push('- 其余为 content（内容页）：每页只讲 1 个核心价值点，用明确分区/列表/流程承载信息。')
-    lines.push(`- default_layout: ${layout.id}（${layout.name}）`)
-    lines.push(`- layout_keypoints: ${layout.keyPoints.join('、')}`)
-    lines.push('')
     lines.push('输出要求（非常重要）：')
     lines.push('- 只输出严格 JSON（不要 markdown，不要解释，不要多余文本）。')
-    lines.push(`- 直接输出 JSON 数组，长度必须为 ${totalCount}。`)
-    lines.push('- blocks 之间不要重复同一个信息点；按滑动节奏递进（cover -> content -> ending）。')
+    lines.push('- 直接输出 JSON 数组，长度必须为 1。')
     lines.push('- JSON 安全：所有字符串字段必须是单行；不要在任何字符串里出现未转义的英文双引号字符(\")。')
     lines.push('- promptLines 必须是 string 数组；每个元素是一行提示词；最终会用 \\n 拼接成生图 prompt。')
     lines.push('')
     lines.push('Base Prompt 模板（promptLines 需要复制其思想与结构；允许根据 aspect_ratio 调整 Orientation/Aspect Ratio 行）：')
-    buildXhsBasePromptLines(ratio).forEach(l => lines.push(l))
+    buildInfographicBasePromptLines(ratio).forEach(l => lines.push(l))
     lines.push('')
     lines.push('PromptLines 写法（非常重要）：')
-    lines.push('- 每个 block 的 promptLines 必须先完整包含 Base Prompt（逐行），然后再追加下方结构化信息。')
-    lines.push('- 追加信息建议按顺序：Page/Layout/Style/Aspect ratio -> Hook/Core message -> Text content -> Visual concept -> Swipe hook -> Color palette -> Style notes。')
-    lines.push('- 所有要出现在画面里的文字，都必须是手写风格，且可读；标题更大，关键词用荧光笔/marker 高亮。')
+    lines.push('- promptLines 必须先完整包含 Base Prompt（逐行），然后再追加下方结构化信息。')
+    lines.push('- 追加信息建议顺序：主题/风格/画幅 -> 布局结构 -> 文本内容 -> 数据与标注 -> 视觉元素 -> 风格参考/留白。')
+    lines.push('- 所有要出现在画面里的文字，都必须可读且完整；标题更大，关键词高亮。')
     lines.push('- 为了 JSON 安全：promptLines 的任何一行都不要出现英文双引号 \";需要引用时请用中文引号「」或『』。')
     lines.push('')
-    lines.push('【PromptLines 模板 - Cover】')
-    lines.push('XHS Carousel Page: Cover')
-    lines.push('Layout: sparse')
+    lines.push('【PromptLines 模板】')
+    lines.push('Infographic theme: <theme>')
     lines.push(`Style: ${style.name}`)
     lines.push(`Aspect ratio: ${ratio}`)
-    lines.push('Hook: <hook>')
-    lines.push('Core message: <coreMessage>')
-    lines.push('Text content (hand-drawn):')
+    lines.push('Layout plan:')
+    lines.push('- Overall structure: <layout>')
+    lines.push('- Sections: <sectionSummary>')
+    lines.push('Text content (hand-drawn, rich & complete):')
     lines.push('- Title: <text.title>')
     lines.push('- Subtitle: <text.subtitle>')
-    lines.push('Visual concept: <visualConcept>')
-    lines.push('Swipe hook: <text.swipeHook>')
-    lines.push('Color palette: primary <primary>; background <background>; accent <accent>')
-    lines.push('Style notes: <styleNotes>')
-    lines.push('')
-    lines.push('【PromptLines 模板 - Content / Ending】')
-    lines.push('XHS Carousel Page: Content or Ending')
-    lines.push(`Layout: ${layout.id} (or override per page)`)
-    lines.push(`Style: ${style.name}`)
-    lines.push(`Aspect ratio: ${ratio}`)
-    lines.push('Core message: <coreMessage>')
-    lines.push('Text content (hand-drawn):')
-    lines.push('- Title: <text.title>')
-    lines.push('- Subtitle: <text.subtitle>')
-    lines.push('- Points: <text.points[]> (short, one line each)')
-    lines.push('- CTA (ending only): <text.cta>')
-    lines.push('- Interaction (ending only): <text.interaction>')
-    lines.push('Visual concept: <visualConcept>')
-    lines.push('Swipe hook: <text.swipeHook>')
-    lines.push('Color palette: primary <primary>; background <background>; accent <accent>')
+    lines.push('- Section 1: <heading> | Points: <points[]> | Data: <data[]>')
+    lines.push('- Section 2: <heading> | Points: <points[]> | Data: <data[]>')
+    lines.push('Data & labels:')
+    lines.push('- <dataPoints[]>')
+    lines.push('Visual elements:')
+    lines.push('- Main illustration: <visuals.main>')
+    lines.push('- Icons: <visuals.icons[]>')
+    lines.push('- Charts/diagrams: <visuals.charts[]>')
+    lines.push('- Callouts/annotations: <visuals.callouts[]>')
+    lines.push('Style reference:')
+    lines.push('- Background: <style.background>')
+    lines.push('- Visual style: <style.visual_style>')
+    lines.push('- Word style: <style.word_style>')
+    lines.push('- Content principle: <style.content_principle>')
+    lines.push('- Negative space: <style.negative_space>')
     lines.push('Style notes: <styleNotes>')
     lines.push('')
     lines.push('每个 block 的格式如下（字段必须齐全；字符串字段若无内容请输出空字符串 \"\"；数组字段若无内容请输出空数组 []）：')
     lines.push('{')
-    lines.push('  \"title\": \"该页标题（<=12字）\",')
-    lines.push('  \"kind\": \"cover|content|ending\",')
-    lines.push('  \"layout\": \"sparse|balanced|dense|list|comparison|flow\",')
-    lines.push('  \"hook\": \"仅cover：开头钩子/情绪句（单行）\",')
-    lines.push('  \"coreMessage\": \"本页核心信息（单行）\",')
+    lines.push('  \"title\": \"信息图标题（<=12字）\",')
+    lines.push('  \"subtitle\": \"副标题（可选）\",')
     lines.push('  \"source\": \"来自内容的关键词/短句（<=40字）\",')
-    lines.push('  \"text\": {')
-    lines.push('    \"title\": \"画面主标题（单行）\",')
-    lines.push('    \"subtitle\": \"副标题（单行）\",')
-    lines.push('    \"points\": [\"要点列表（每行一个，单行）\"],')
-    lines.push('    \"cta\": \"结尾CTA（单行）\",')
-    lines.push('    \"interaction\": \"互动引导（单行）\",')
-    lines.push('    \"swipeHook\": \"引导下一张的钩子（单行）\"')
+    lines.push('  \"theme\": \"信息图主题（2-4个词）\",')
+    lines.push('  \"layout\": \"布局结构描述（单行）\",')
+    lines.push('  \"sections\": [')
+    lines.push('    {')
+    lines.push('      \"heading\": \"模块标题（单行）\",')
+    lines.push('      \"points\": [\"要点（单行）\"],')
+    lines.push('      \"data\": [\"数据/指标（单行）\"]')
+    lines.push('    }')
+    lines.push('  ],')
+    lines.push('  \"highlights\": [\"需要强调的关键词（单行）\"],')
+    lines.push('  \"dataPoints\": [\"关键信息/数值/术语（单行）\"],')
+    lines.push('  \"visuals\": {')
+    lines.push('    \"main\": \"主视觉/场景/角色（单行）\",')
+    lines.push('    \"icons\": [\"图标/元素（单行）\"],')
+    lines.push('    \"charts\": [\"图表/流程/对比结构（单行）\"],')
+    lines.push('    \"callouts\": [\"标注/提示/箭头说明（单行）\"]')
     lines.push('  },')
-    lines.push('  \"visualConcept\": \"画面视觉概念（单行，说明分区/图标/插画元素）\",')
     lines.push('  \"styleNotes\": \"补充风格特征（可选，单行）\",')
     lines.push('  \"promptLines\": [\"最终生图提示词（必须按 Base Prompt + Prompt Format 写好）\"]')
     lines.push('}')
@@ -631,107 +518,109 @@ export default function XHSImagesPage() {
     return lines.join('\n').trim()
   }
 
-  const buildPromptFromPlan = (item: any, kind: IllustrationBlock['kind']) => {
+  const buildPromptFromPlan = (item: any) => {
     const title = toOneLine(item?.title)
+    const subtitle = toOneLine(item?.subtitle)
     const source = toOneLine(item?.source)
-
-    const hook = toOneLine(item?.hook)
-    const coreMessage = toOneLine(item?.coreMessage ?? item?.core_message ?? item?.core ?? item?.message)
-
-    const text = asPlainObject(item?.text) || {}
-    const textTitle = toOneLine(text.title ?? item?.textTitle ?? item?.text_title)
-    const subtitle = toOneLine(text.subtitle ?? item?.subtitle)
-
-    const pointsRaw = text.points ?? item?.points
-    const points = Array.isArray(pointsRaw)
-      ? pointsRaw.map(v => toOneLine(v)).filter(Boolean)
-      : toOneLine(pointsRaw)
-        ? [toOneLine(pointsRaw)]
-        : []
-
-    const cta = toOneLine(text.cta ?? item?.cta)
-    const interaction = toOneLine(text.interaction ?? item?.interaction)
-    const swipeHook = toOneLine(text.swipeHook ?? text.swipe_hook ?? item?.swipeHook ?? item?.swipe_hook)
-
-    const visualConcept = toOneLine(item?.visualConcept ?? item?.visual_concept ?? item?.visual)
+    const theme = toOneLine(item?.theme ?? item?.topic) || title
+    const layout = toOneLine(item?.layout ?? item?.structure ?? item?.composition)
     const styleNotes = toOneLine(item?.styleNotes ?? item?.style_notes)
 
-    const layoutCandidate = toOneLine(item?.layout)
-    const allowedLayouts: LayoutPreset['id'][] = ['sparse', 'balanced', 'dense', 'list', 'comparison', 'flow']
-    const layoutId: LayoutPreset['id'] =
-      allowedLayouts.includes(layoutCandidate as LayoutPreset['id'])
-        ? (layoutCandidate as LayoutPreset['id'])
-        : (kind === 'cover' || kind === 'ending')
-          ? 'sparse'
-          : selectedLayout.id
+    const textContent = asPlainObject(item?.textContent ?? item?.text) || {}
+    const textTitle = toOneLine(textContent.title) || title
+    const textSubtitle = toOneLine(textContent.subtitle) || subtitle
 
-    const layoutPreset = LAYOUT_PRESETS.find(l => l.id === layoutId)
+    const sectionsRaw = Array.isArray(item?.sections) ? item.sections : Array.isArray(textContent.sections) ? textContent.sections : []
+    const sections: InfographicSection[] = sectionsRaw
+      .map((section: any): InfographicSection => {
+        const sectionObj = asPlainObject(section) || {}
+        const heading = toOneLine(sectionObj.heading ?? sectionObj.title ?? sectionObj.name)
+        const points = toStringArray(sectionObj.points ?? sectionObj.items ?? sectionObj.bullets)
+        const data = toStringArray(sectionObj.data ?? sectionObj.metrics ?? sectionObj.values)
+        return { heading, points, data }
+      })
+      .filter((section: InfographicSection) => section.heading || section.points.length || section.data.length)
 
-    const hasAnyPlan =
-      title ||
-      source ||
-      hook ||
-      coreMessage ||
-      textTitle ||
-      subtitle ||
-      points.length ||
-      cta ||
-      interaction ||
-      swipeHook ||
-      visualConcept ||
+    const highlights = toStringArray(item?.highlights ?? item?.keywords ?? item?.keyPoints)
+    const dataPoints = toStringArray(item?.dataPoints ?? item?.data_points ?? textContent.data ?? item?.data)
+
+    const visuals = asPlainObject(item?.visuals ?? item?.visual) || {}
+    const mainVisual = toOneLine(visuals.main ?? item?.mainVisual ?? item?.main)
+    const icons = toStringArray(visuals.icons ?? item?.icons ?? item?.visualIcons)
+    const charts = toStringArray(visuals.charts ?? item?.charts ?? item?.diagrams)
+    const callouts = toStringArray(visuals.callouts ?? item?.callouts ?? item?.annotations)
+
+    const hasAnyPlan = [
+      title,
+      subtitle,
+      source,
+      theme,
+      layout,
+      textTitle,
+      textSubtitle,
+      sections.length,
+      highlights.length,
+      dataPoints.length,
+      mainVisual,
+      icons.length,
+      charts.length,
+      callouts.length,
       styleNotes
+    ].some(Boolean)
     if (!hasAnyPlan) return ''
 
-    const palette = selectedStyle.palette
-
     const lines: string[] = []
-    lines.push(...buildXhsBasePromptLines(ratio))
-    lines.push('')
 
-    lines.push(`XHS Carousel Page: ${kind}`)
-    lines.push(`Layout: ${layoutPreset ? `${layoutPreset.id} (${layoutPreset.name})` : layoutId}`)
+    lines.push(...buildInfographicBasePromptLines(ratio))
+    lines.push('')
+    lines.push(`Infographic theme: ${theme || ''}`.trimEnd())
     lines.push(`Style: ${selectedStyle.name}`)
     lines.push(`Aspect ratio: ${ratio}`)
     lines.push('')
-
-    if (kind === 'cover') {
-      lines.push('Cover rule: sparse layout, strong visual center, big readable title, 1 core hook only.')
-      if (hook) lines.push(`Hook: ${hook}`)
-    } else if (kind === 'ending') {
-      lines.push('Ending rule: short summary + clear CTA + interaction (collect/comment/follow). Use icons.')
+    lines.push('Layout plan:')
+    lines.push(`- Overall structure: ${layout || ''}`.trimEnd())
+    if (sections.length) {
+      const sectionSummary = sections.map((section: InfographicSection) => section.heading).filter(Boolean).join(' / ')
+      if (sectionSummary) lines.push(`- Sections: ${sectionSummary}`)
     }
-
-    if (coreMessage) lines.push(`Core message: ${coreMessage}`)
-    if (source) lines.push(`Source cue: ${source}`)
-    if (swipeHook) lines.push(`Swipe hook: ${swipeHook}`)
-
+    if (source) lines.push(`- Source cue: ${source}`)
     lines.push('')
-    lines.push('Text content (hand-drawn):')
-    if (textTitle) lines.push(`- Title: ${textTitle}`)
-    if (subtitle) lines.push(`- Subtitle: ${subtitle}`)
-    if (points.length) {
-      lines.push('- Points:')
-      points.forEach(p => lines.push(`- ${p}`))
+    lines.push('Text content (hand-drawn, rich & complete):')
+    lines.push(`- Title: ${textTitle || ''}`.trimEnd())
+    lines.push(`- Subtitle: ${textSubtitle || ''}`.trimEnd())
+    if (sections.length) {
+      sections.forEach((section: InfographicSection, index: number) => {
+        const heading = section.heading ? `Section ${index + 1}: ${section.heading}` : `Section ${index + 1}`
+        const pointsText = section.points.length ? `Points: ${section.points.join(' / ')}` : ''
+        const dataText = section.data.length ? `Data: ${section.data.join(' / ')}` : ''
+        const detail = [pointsText, dataText].filter(Boolean).join(' | ')
+        lines.push(`- ${heading}${detail ? ` | ${detail}` : ''}`)
+      })
+    } else if (highlights.length) {
+      lines.push(`- Key points: ${highlights.join(' / ')}`)
+    }
+    lines.push('')
+    lines.push('Data & labels:')
+    if (dataPoints.length) {
+      dataPoints.forEach(point => lines.push(`- ${point}`))
     } else {
-      lines.push('- Points: None')
+      lines.push('- None')
     }
-    if (cta) lines.push(`- CTA: ${cta}`)
-    if (interaction) lines.push(`- Interaction: ${interaction}`)
-
     lines.push('')
-    lines.push('Visual concept:')
-    if (visualConcept) lines.push(`- ${visualConcept}`)
-    if (layoutPreset?.keyPoints?.length) lines.push(`- Layout keypoints: ${layoutPreset.keyPoints.join(', ')}`)
-
+    lines.push('Visual elements:')
+    lines.push(`- Main illustration: ${mainVisual || ''}`.trimEnd())
+    if (icons.length) lines.push(`- Icons: ${icons.join(' / ')}`)
+    if (charts.length) lines.push(`- Charts/diagrams: ${charts.join(' / ')}`)
+    if (callouts.length) lines.push(`- Callouts/annotations: ${callouts.join(' / ')}`)
+    if (highlights.length) lines.push(`- Highlight keywords: ${highlights.join(' / ')}`)
     lines.push('')
-    lines.push('Color palette:')
-    lines.push(`- Primary: ${palette.primary}`)
-    lines.push(`- Background: ${palette.background}`)
-    lines.push(`- Accent: ${palette.accent}`)
-
-    lines.push('')
+    lines.push('Style reference:')
+    lines.push(`- Background: ${selectedStyle.background}`)
+    lines.push(`- Visual style: ${selectedStyle.visual_style}`)
+    lines.push(`- Word style: ${selectedStyle.word_style}`)
+    lines.push(`- Content principle: ${selectedStyle.content_principle}`)
+    lines.push(`- Negative space: ${selectedStyle.negative_space}`)
     lines.push(`Style notes: ${styleNotes || ''}`.trimEnd())
-    lines.push(`Style keypoints: ${buildStylePrompt(selectedStyle)}`)
 
     return lines.join('\n').trim()
   }
@@ -758,16 +647,11 @@ export default function XHSImagesPage() {
     setBlocks([])
 
     const systemPrompt = buildPlannerSystemPrompt({
-      totalCount,
       ratio,
-      includeCover,
-      includeEnding,
-      layout: selectedLayout,
       style: selectedStyle
     })
 
     const userPrompt = `内容：\n${article}`
-
 
     try {
       let rawContent = ''
@@ -835,36 +719,31 @@ export default function XHSImagesPage() {
       }
 
       const parsed = parseJsonFromContent(rawContent)
-
       const list = Array.isArray(parsed)
         ? parsed
-        : (parsed as any)?.blocks
+        : Array.isArray((parsed as any)?.blocks)
+          ? (parsed as any).blocks
+          : parsed
+            ? [parsed]
+            : []
 
-      if (!Array.isArray(list)) throw new Error('返回格式不正确：未找到 blocks 数组')
+      if (!Array.isArray(list) || list.length === 0) throw new Error('返回格式不正确：未找到 blocks 数组')
 
-      const normalized: IllustrationBlock[] = list.slice(0, totalCount).map((item: any, i: number) => {
-        const kind: IllustrationBlock['kind'] =
-          includeCover && i === 0
-            ? 'cover'
-            : includeEnding && i === totalCount - 1
-              ? 'ending'
-              : 'content'
-
-        const title = toOneLine(item?.title)
+      const normalized: InfographicBlock[] = list.slice(0, 1).map((item: any, i: number) => {
+        const title = toOneLine(item?.title) || '信息图'
         const source = toOneLine(item?.source)
 
         const promptFromLines = Array.isArray(item?.promptLines)
           ? item.promptLines.filter((v: any) => typeof v === 'string').join('\n').trim()
           : ''
         const promptFromString = typeof item?.prompt === 'string' ? item.prompt.trim() : ''
-        const promptFromPlan = buildPromptFromPlan(item, kind)
+        const promptFromPlan = buildPromptFromPlan(item)
 
         const prompt = (promptFromLines || promptFromString || promptFromPlan).trim()
 
         return {
           id: `ai_${Date.now()}_${i}`,
-          kind,
-          title: title || (kind === 'cover' ? '封面' : kind === 'ending' ? '结尾/CTA' : `内容 ${includeCover ? i : i + 1}`),
+          title,
           source,
           prompt
         }
@@ -874,7 +753,7 @@ export default function XHSImagesPage() {
       gallerySessionPromiseRef.current = null
       setBlocks(normalized)
       collapseConfigOnMobile()
-      showToast('已生成配图大纲与提示词', 'success')
+      showToast('已生成信息图提示词', 'success')
     } catch (e: any) {
       showToast(`生成失败: ${e?.message || '未知错误'}`, 'error')
     } finally {
@@ -1016,9 +895,9 @@ export default function XHSImagesPage() {
         <div className="px-4 py-4 border-b border-[var(--border-color)] bg-[var(--bg-primary)] lg:hidden">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-lg font-semibold tracking-tight truncate">XHS配图</h1>
+              <h1 className="text-lg font-semibold tracking-tight truncate">信息图</h1>
               <p className="text-xs text-[var(--text-tertiary)] mt-1 font-serif">
-                将内容拆解为小红书可滑动信息图系列，生成可直接生图的提示词
+                将内容整理成单页高密度信息图，生成可直接生图的提示词
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -1026,7 +905,7 @@ export default function XHSImagesPage() {
                 type="button"
                 onClick={() => setIsConfigOpen(open => !open)}
                 aria-expanded={isConfigOpen}
-                aria-controls="xhs-config-panel"
+                aria-controls="infographic-config-panel"
                 className="px-2.5 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs shadow-sm hover:bg-[var(--bg-tertiary)] transition-colors"
               >
                 {isConfigOpen ? '收起输入' : '展开输入'}
@@ -1042,9 +921,8 @@ export default function XHSImagesPage() {
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-          {/* Left: Input & Config */}
           <div
-            id="xhs-config-panel"
+            id="infographic-config-panel"
             className={[
               'lg:w-[420px] p-4 border-b lg:border-b-0 lg:border-r border-[var(--border-color)] overflow-y-auto lg:block',
               isConfigOpen ? 'block' : 'hidden'
@@ -1063,7 +941,7 @@ export default function XHSImagesPage() {
               <textarea
                 value={article}
                 onChange={(e) => setArticle(e.target.value)}
-                placeholder="粘贴小红书笔记/文章内容，或点击右上角上传文件..."
+                placeholder="粘贴内容，或点击右上角上传文件..."
                 className="w-full px-3 py-2 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] h-56 resize-none shadow-sm font-serif"
               />
               <input
@@ -1084,7 +962,7 @@ export default function XHSImagesPage() {
                     生成中...
                   </>
                 ) : (
-                  '生成系列大纲'
+                  '生成信息图提示词'
                 )}
               </button>
             </div>
@@ -1092,59 +970,11 @@ export default function XHSImagesPage() {
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 shadow-sm mb-4">
               <div className="text-sm font-medium mb-3">配置</div>
               <div className="flex items-center justify-between gap-3 mb-3">
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={includeCover}
-                      onChange={(e) => setIncludeCover(e.target.checked)}
-                      className="w-4 h-4 rounded"
-                    />
-                    封面页
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={includeEnding}
-                      onChange={(e) => setIncludeEnding(e.target.checked)}
-                      className="w-4 h-4 rounded"
-                    />
-                    结尾/CTA页
-                  </label>
-                </div>
-                <div className="text-xs text-[var(--text-tertiary)]">共 {totalCount} 张</div>
+                <div className="text-sm">输出张数</div>
+                <div className="text-xs text-[var(--text-tertiary)]">1 张</div>
               </div>
 
-              <label className="block text-sm mb-1">中间内容页数量</label>
-              <select
-                value={bodyCount}
-                onChange={(e) => {
-                  const v = e.target.value
-                  if (v === 'auto') setBodyCount('auto')
-                  else setBodyCount(Number(v) as BodyCountOption)
-                }}
-                className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
-              >
-                <option value="auto">自动（推荐 {autoBodyCount} 张）</option>
-                <option value={1}>1 张</option>
-                {[2, 3, 4, 6, 8, 10].map(n => (
-                  <option key={n} value={n}>{n} 张</option>
-                ))}
-              </select>
-
-              <label className="block text-sm mb-1 mt-3">默认信息布局</label>
-              <select
-                value={layoutId}
-                onChange={(e) => setLayoutId(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
-              >
-                <option value="auto">自动（推荐 {autoLayout.name}）</option>
-                {LAYOUT_PRESETS.map(layout => (
-                  <option key={layout.id} value={layout.id}>{layout.name}</option>
-                ))}
-              </select>
-
-              <details className="mt-3">
+              <details className="mt-2">
                 <summary className="text-sm cursor-pointer select-none text-[var(--text-secondary)]">高级生成参数</summary>
                 <div className="grid grid-cols-2 gap-2 mt-3">
                   <div>
@@ -1180,14 +1010,14 @@ export default function XHSImagesPage() {
 
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-medium">配图风格</div>
+                <div className="text-sm font-medium">信息图风格</div>
                 <div className="text-xs text-[var(--text-tertiary)]">点击预览并选中</div>
               </div>
 
               <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-hidden shadow-sm mb-3">
                 <div className="bg-[var(--bg-tertiary)]" style={{ aspectRatio: '16 / 9' }}>
                   <img
-                    src={selectedStyle.previewBg}
+                    src={selectedStyle.preview}
                     alt=""
                     className="w-full h-full object-cover"
                   />
@@ -1196,8 +1026,10 @@ export default function XHSImagesPage() {
                   <div className="text-sm font-medium truncate">
                     {styleId === 'auto' ? `自动（推荐：${autoStyle.name}）` : selectedStyle.name}
                   </div>
-                  <div className="text-xs text-[var(--text-tertiary)] font-serif mt-1">{selectedStyle.desc}</div>
-                  <div className="text-[11px] text-[var(--text-tertiary)] font-serif mt-1 line-clamp-2">{selectedStyle.bestFor}</div>
+                  <div className="text-xs text-[var(--text-tertiary)] font-serif mt-1">{selectedStyle.tag}</div>
+                  <div className="text-[11px] text-[var(--text-tertiary)] font-serif mt-1 line-clamp-2">
+                    {selectedStyle.visual_style}
+                  </div>
                 </div>
               </div>
 
@@ -1211,7 +1043,7 @@ export default function XHSImagesPage() {
                     ].join(' ')}
                   >
                     <div className="rounded-xl overflow-hidden bg-[var(--bg-tertiary)]" style={{ aspectRatio: '16 / 9' }}>
-                      <img src={autoStyle.previewBg} alt="" className="w-full h-full object-cover" />
+                      <img src={autoStyle.preview} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="mt-2 text-xs font-medium truncate">自动</div>
                     <div className="text-[11px] text-[var(--text-tertiary)] truncate font-serif">推荐：{autoStyle.name}</div>
@@ -1228,10 +1060,10 @@ export default function XHSImagesPage() {
                         ].join(' ')}
                       >
                         <div className="rounded-xl overflow-hidden bg-[var(--bg-tertiary)]" style={{ aspectRatio: '16 / 9' }}>
-                          <img src={style.previewBg} alt="" className="w-full h-full object-cover" />
+                          <img src={style.preview} alt="" className="w-full h-full object-cover" />
                         </div>
                         <div className="mt-2 text-xs font-medium truncate">{style.name}</div>
-                        <div className="text-[11px] text-[var(--text-tertiary)] truncate font-serif">{style.desc}</div>
+                        <div className="text-[11px] text-[var(--text-tertiary)] truncate font-serif">{style.tag}</div>
                       </button>
                     )
                   })}
@@ -1240,56 +1072,44 @@ export default function XHSImagesPage() {
             </div>
           </div>
 
-          {/* Right: Blocks */}
           <div className="flex-1 p-4 overflow-y-auto">
             {blocks.length === 0 ? (
               <div className="h-full flex items-center justify-center text-[var(--text-tertiary)]">
-                在左侧粘贴内容，然后点击“生成系列大纲”
+                在左侧粘贴内容，然后点击“生成信息图提示词”
               </div>
             ) : (
               <div className="max-w-5xl mx-auto space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm text-[var(--text-secondary)]">
-                    已生成 {blocks.length} 张卡片，可编辑提示词后生成图片
+                    已生成 {blocks.length} 份信息图提示词，可编辑后生成图片
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={generateAllImages}
                       className="px-3 py-2 rounded-xl bg-[var(--success-color)] text-white text-sm shadow-sm hover:opacity-90 transition-opacity"
                     >
-                      批量生成图片
+                      生成图片
                     </button>
                     <button
-                      onClick={() => {
-                        const all = blocks.map(b => b.prompt).filter(Boolean).join('\n\n')
-                        navigator.clipboard.writeText(all).then(() => showToast('已复制全部提示词', 'success'))
-                      }}
+                      onClick={() => copyPrompt(0)}
                       className="px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm shadow-sm hover:bg-[var(--bg-tertiary)] transition-colors"
                     >
-                      复制全部提示词
+                      复制提示词
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {(() => {
-                    let contentNo = 0
-                    return blocks.map((block, i) => {
-                      const displayNo = block.kind === 'content' ? ++contentNo : 0
-                      return (
-                        <div
-                          key={block.id}
-                          className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden shadow-sm"
-                        >
+                <div className="grid grid-cols-1 gap-4">
+                  {blocks.map((block, i) => (
+                    <div
+                      key={block.id}
+                      className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl overflow-hidden shadow-sm"
+                    >
                       <div className="p-4 border-b border-[var(--border-color)]">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-sm font-medium truncate">
-                              {block.kind === 'cover'
-                                ? `封面 · ${block.title}`
-                                : block.kind === 'ending'
-                                  ? `结尾 · ${block.title}`
-                                  : `${displayNo}. ${block.title}`}
+                              {block.title || '信息图'}
                             </div>
                             {block.source && (
                               <div className="text-xs text-[var(--text-tertiary)] font-serif mt-1 line-clamp-2">
@@ -1326,7 +1146,7 @@ export default function XHSImagesPage() {
                             })
                           }}
                           placeholder="可编辑提示词..."
-                          className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm h-28 resize-none font-serif"
+                          className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm h-32 resize-none font-serif"
                         />
 
                         <div
@@ -1336,7 +1156,7 @@ export default function XHSImagesPage() {
                           {block.imageData && block.imageData !== 'loading' && (
                             <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
                               <button
-                                onClick={() => downloadImage(block.imageData!, `article_${Date.now()}_${i}.png`)}
+                                onClick={() => downloadImage(block.imageData!, `infographic_${Date.now()}_${i}.png`)}
                                 className="px-2.5 py-1.5 rounded-full bg-[rgba(20,20,19,0.55)] text-white text-xs border border-white/15 backdrop-blur-sm hover:bg-[rgba(20,20,19,0.72)] transition-colors shadow-sm"
                               >
                                 下载
@@ -1371,9 +1191,7 @@ export default function XHSImagesPage() {
                         </div>
                       </div>
                     </div>
-                      )
-                    })
-                  })()}
+                  ))}
                 </div>
               </div>
             )}

@@ -64,6 +64,7 @@ src/
 - `/create` - Image generation
 - `/article-images` - Article illustration generator
 - `/xhs-images` - Xiaohongshu (Little Red Book) image generator
+- `/infographic` - Infographic generator (single-page high-density infographics with 13 style presets)
 - `/prompts` - Prompt management
 - `/editor` - Image editor/slicer
 - `/settings` - API configuration

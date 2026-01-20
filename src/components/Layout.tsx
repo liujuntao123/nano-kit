@@ -9,6 +9,7 @@ import SettingsPage from '../pages/SettingsPage'
 import BananaModal from './modals/BananaModal'
 import ArticleIllustrationPage from '../pages/ArticleIllustrationPage'
 import XHSImagesPage from '../pages/XHSImagesPage'
+import InfographicPage from '../pages/InfographicPage'
 import MyPromptsPage from '../pages/MyPromptsPage'
 import ImageEditorPage from '../pages/ImageEditorPage'
 
@@ -33,6 +34,7 @@ export default function Layout() {
               <Route path="/create" element={<GeneratePage />} />
               <Route path="/article-images" element={<ArticleIllustrationPage />} />
               <Route path="/xhs-images" element={<XHSImagesPage />} />
+              <Route path="/infographic" element={<InfographicPage />} />
               <Route path="/prompts" element={<MyPromptsPage />} />
               <Route path="/editor" element={<ImageEditorPage />} />
               <Route path="/settings" element={<SettingsPage />} />

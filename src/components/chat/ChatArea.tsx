@@ -79,6 +79,12 @@ function EmptyState() {
           onClick={() => navigate('/article-images')}
         />
         <QuickAction
+          icon={<InfographicIcon />}
+          title="信息图"
+          desc="单页高密度信息图"
+          onClick={() => navigate('/infographic')}
+        />
+        <QuickAction
           icon={<StickerIcon />}
           title="表情包模式"
           desc="快速制作表情包"
@@ -149,6 +155,17 @@ function StickerIcon() {
       <path d="M8 14s1.5 2 4 2 4-2 4-2" />
       <line x1="9" y1="9" x2="9.01" y2="9" />
       <line x1="15" y1="9" x2="15.01" y2="9" />
+    </svg>
+  )
+}
+
+function InfographicIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="4" y1="19" x2="20" y2="19" />
+      <rect x="6" y="10" width="3" height="7" />
+      <rect x="11" y="6" width="3" height="11" />
+      <rect x="16" y="13" width="3" height="4" />
     </svg>
   )
 }

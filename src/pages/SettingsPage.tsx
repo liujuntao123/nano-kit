@@ -161,7 +161,7 @@ export default function SettingsPage() {
                       ))}
                     </select>
                     <div className="text-[11px] text-[var(--text-tertiary)] mt-1 font-serif">
-                      用于文章配图等功能
+                      用于文章配图、信息图等功能
                     </div>
                   </div>
                 </div>

@@ -200,6 +200,7 @@ export default function ArticleIllustrationPage() {
   const [styleId, setStyleId] = useState<'auto' | string>('auto')
   const [quality, setQuality] = useState<'1K' | '2K' | '4K'>('2K')
   const [ratio, setRatio] = useState<'2.35:1' | '3:4' | '1:1' | '4:3' | '16:9' | '9:16'>('16:9')
+  const [isConfigOpen, setIsConfigOpen] = useState(true)
 
   const [blocks, setBlocks] = useState<IllustrationBlock[]>([])
   const [extracting, setExtracting] = useState(false)
@@ -217,6 +218,13 @@ export default function ArticleIllustrationPage() {
     if (!firstLine) return fallback
     const short = firstLine.length > 20 ? `${firstLine.slice(0, 20)}...` : firstLine
     return `${fallback} - ${short}`
+  }
+
+  const collapseConfigOnMobile = () => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      setIsConfigOpen(false)
+    }
   }
 
   const ensureGallerySession = async () => {
@@ -839,6 +847,7 @@ export default function ArticleIllustrationPage() {
       gallerySessionRef.current = null
       gallerySessionPromiseRef.current = null
       setBlocks(normalized)
+      collapseConfigOnMobile()
       showToast('已生成配图信息', 'success')
     } catch (e: any) {
       showToast(`生成失败: ${e?.message || '未知错误'}`, 'error')
@@ -986,18 +995,35 @@ export default function ArticleIllustrationPage() {
                 从文章中提取配图信息，生成可直接生图的提示词
               </p>
             </div>
-            <Link
-              to="/settings"
-              className="shrink-0 px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm shadow-sm hover:bg-[var(--bg-tertiary)] transition-colors"
-            >
-              去设置
-            </Link>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsConfigOpen(open => !open)}
+                aria-expanded={isConfigOpen}
+                aria-controls="article-config-panel"
+                className="px-2.5 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs shadow-sm hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                {isConfigOpen ? '收起输入' : '展开输入'}
+              </button>
+              <Link
+                to="/settings"
+                className="px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm shadow-sm hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                去设置
+              </Link>
+            </div>
           </div>
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Left: Input & Config */}
-          <div className="lg:w-[420px] p-4 border-b lg:border-b-0 lg:border-r border-[var(--border-color)] overflow-y-auto">
+          <div
+            id="article-config-panel"
+            className={[
+              'lg:w-[420px] p-4 border-b lg:border-b-0 lg:border-r border-[var(--border-color)] overflow-y-auto lg:block',
+              isConfigOpen ? 'block' : 'hidden'
+            ].join(' ')}
+          >
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium">文章输入</label>
@@ -1265,7 +1291,7 @@ export default function ArticleIllustrationPage() {
                         />
 
                         <div
-                          className="relative w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl overflow-hidden"
+                          className="relative w-full min-h-[220px] lg:min-h-0 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-2xl overflow-hidden"
                           style={{ aspectRatio: toAspect(ratio) }}
                         >
                           {block.imageData && block.imageData !== 'loading' && (
