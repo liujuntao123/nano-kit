@@ -28,7 +28,8 @@ export default function Layout() {
           <PageHeaderProvider>
             <DesktopHeader />
             <Routes>
-              <Route path="/" element={<HomePage />} />
+              <Route path="/" element={<GeneratePage />} />
+              <Route path="/records" element={<HomePage />} />
               <Route path="/create" element={<GeneratePage />} />
               <Route path="/article-images" element={<ArticleIllustrationPage />} />
               <Route path="/xhs-images" element={<XHSImagesPage />} />

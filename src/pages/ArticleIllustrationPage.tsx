@@ -199,7 +199,7 @@ export default function ArticleIllustrationPage() {
   const [bodyCount, setBodyCount] = useState<BodyCountOption>('auto')
   const [styleId, setStyleId] = useState<'auto' | string>('auto')
   const [quality, setQuality] = useState<'1K' | '2K' | '4K'>('2K')
-  const [ratio, setRatio] = useState<'2.35:1' | '3:4' | '1:1' | '4:3' | '16:9' | '9:16'>('3:4')
+  const [ratio, setRatio] = useState<'2.35:1' | '3:4' | '1:1' | '4:3' | '16:9' | '9:16'>('16:9')
 
   const [blocks, setBlocks] = useState<IllustrationBlock[]>([])
   const [extracting, setExtracting] = useState(false)

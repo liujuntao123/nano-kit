@@ -10,8 +10,44 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, m => map[m] || m)
 }
 
-// Native fetch to bypass extension interception
-export const nativeFetch = window.fetch.bind(window)
+function isProxyEnabled(value: unknown): boolean {
+  const normalized = String(value ?? '').trim().toLowerCase()
+  return normalized === 'true' || normalized === '1' || normalized === 'yes'
+}
+
+function shouldProxyUrl(url: string): boolean {
+  if (!/^https?:\/\//i.test(url)) return false
+  try {
+    const parsed = new URL(url)
+    if (parsed.origin === window.location.origin && parsed.pathname === '/proxy') {
+      return false
+    }
+  } catch (_) {
+    return false
+  }
+  return true
+}
+
+// Native fetch to bypass extension interception (optionally via /proxy).
+export function nativeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const proxyEnabled = isProxyEnabled(import.meta.env.PROXY)
+  if (!proxyEnabled) {
+    return window.fetch(input, init)
+  }
+
+  const url = input instanceof Request ? input.url : input.toString()
+  if (!shouldProxyUrl(url)) {
+    return window.fetch(input, init)
+  }
+
+  const proxyUrl = `/proxy?url=${encodeURIComponent(url)}`
+  if (input instanceof Request) {
+    const proxiedRequest = new Request(proxyUrl, input)
+    return window.fetch(proxiedRequest, init)
+  }
+
+  return window.fetch(proxyUrl, init)
+}
 
 // Best-effort MIME detection for base64 image payloads (stored without data: prefix in DB).
 export function guessImageMimeType(base64OrDataUrl: string): string {
@@ -146,7 +182,12 @@ export function downloadImage(base64Data: string, filename: string): void {
 
 // Build a dynamic image model name like: "gemini-3-pro-image-2k-4x3"
 // Some backends use the model id to select resolution/aspect ratio.
-export function buildDynamicImageModel(model: string, resolution?: string, aspectRatio?: string): string {
+export function buildDynamicImageModel(
+  model: string,
+  resolution?: string,
+  aspectRatio?: string,
+  appendSuffix = true
+): string {
   const raw = (model || '').trim()
   if (!raw) return raw
   // Keep non-Gemini model ids untouched (e.g. OpenAI image models).
@@ -166,6 +207,7 @@ export function buildDynamicImageModel(model: string, resolution?: string, aspec
   if (res) suffixParts.push(res)
   if (normalizedRatio) suffixParts.push(normalizedRatio)
 
+  if (!appendSuffix) return base
   if (suffixParts.length === 0) return base
   return `${base}-${suffixParts.join('-')}`
 }
