@@ -10,9 +10,9 @@ function getEmptyForm(): Partial<Provider> {
     type: 'gemini',
     host: '',
     key: '',
-    textModel: '',
-    imageModel: '',
-    capabilities: { image: true, text: false }
+    textModel: 'gemini-3-flash',
+    imageModel: 'gemini-3-pro-image',
+    capabilities: { image: true, text: true }
   }
 }
 
