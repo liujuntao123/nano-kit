@@ -435,7 +435,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Input state
   inputImages: [],
-  resolution: '4K',
+  resolution: '2K',
   aspectRatio: 'auto',
   addInputImage: (image) => {
     set(state => {
