@@ -8,6 +8,8 @@ import type { Message } from '../../types'
 type ReadyGalleryItem = {
   type: 'ready'
   id: string
+  messageId: number
+  imageIndex: number
   prompt: string
   imageBase64: string
   imageSrc: string
@@ -36,12 +38,14 @@ export default function GalleryMasonry({
   const location = useLocation()
   const {
     galleryRefreshKey,
+    bumpGalleryRefreshKey,
     activeGenerations,
     openLightbox,
     addInputImage,
     openSlicerModal,
     setPendingInputText,
-    showToast
+    showToast,
+    showConfirm
   } = useAppStore()
 
   const [items, setItems] = useState<GalleryItem[]>([])
@@ -119,6 +123,65 @@ export default function GalleryMasonry({
   useEffect(() => {
     loadGallery()
   }, [galleryRefreshKey, activeGenerations])
+
+  const handleDeleteImage = async (item: ReadyGalleryItem) => {
+    if (!item.messageId) {
+      showToast('无法删除该图片', 'error')
+      return
+    }
+
+    showConfirm({
+      title: '删除图片',
+      message: '确定删除这张图片吗？',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const message = await db.getMessage(item.messageId)
+          if (!message) {
+            showToast('未找到对应消息', 'error')
+            return
+          }
+
+          const images = Array.isArray(message.images) ? message.images : []
+          const targetBase64 = item.imageBase64
+          let nextImages = [...images]
+          let removed = false
+
+          if (item.imageIndex >= 0 && item.imageIndex < nextImages.length) {
+            const candidate = stripDataUrl(nextImages[item.imageIndex])
+            if (candidate === targetBase64) {
+              nextImages.splice(item.imageIndex, 1)
+              removed = true
+            }
+          }
+
+          if (!removed) {
+            const idx = nextImages.findIndex(img => stripDataUrl(img) === targetBase64)
+            if (idx >= 0) {
+              nextImages.splice(idx, 1)
+              removed = true
+            }
+          }
+
+          if (!removed) {
+            showToast('未找到要删除的图片', 'warning')
+            return
+          }
+
+          const nextRawHtml = message.rawHtml
+            ? removeImageFromRawHtml(message.rawHtml, targetBase64)
+            : message.rawHtml
+
+          await db.updateMessage({ ...message, images: nextImages, rawHtml: nextRawHtml })
+          showToast('图片已删除', 'success')
+          bumpGalleryRefreshKey()
+        } catch (e) {
+          console.error('Failed to delete image:', e)
+          showToast('删除失败', 'error')
+        }
+      }
+    })
+  }
 
   const savePromptToMyPrompts = (prompt: string) => {
     const text = (prompt || '').trim()
@@ -249,6 +312,18 @@ export default function GalleryMasonry({
                         </svg>
                       }
                     />
+                    {item.messageId ? (
+                      <OverlayActionButton
+                        label="删除"
+                        onClick={() => handleDeleteImage(item)}
+                        icon={(
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        )}
+                      />
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -356,8 +431,10 @@ function extractGalleryItemsFromSession(messages: Message[]): ReadyGalleryItem[]
       items.push({
         type: 'ready',
         id: `${msg.sessionId}_${msg.id ?? msg.timestamp}_${index}`,
+        messageId: msg.id ?? 0,
+        imageIndex: index,
         prompt: lastPrompt,
-        imageBase64: img.startsWith('data:') ? img.split(',')[1] || '' : img,
+        imageBase64: stripDataUrl(img),
         imageSrc,
         mimeType,
         timestamp: msg.timestamp
@@ -454,4 +531,41 @@ function OverlayActionButton({
       <span className="hidden sm:inline">{label}</span>
     </button>
   )
+}
+
+function stripDataUrl(value: string): string {
+  const src = (value || '').trim()
+  if (!src) return ''
+  if (src.startsWith('data:')) {
+    return src.split(',')[1] || ''
+  }
+  return src
+}
+
+function removeImageFromRawHtml(rawHtml: string, targetBase64: string): string {
+  if (!rawHtml || !targetBase64) return rawHtml
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(rawHtml, 'text/html')
+    const images = Array.from(doc.querySelectorAll('img'))
+    const target = images.find((img) => {
+      const src = img.getAttribute('src') || ''
+      return stripDataUrl(src) === targetBase64
+    })
+    if (!target) return rawHtml
+
+    const group = target.closest('.img-result-group')
+    const container = group?.closest('.msg-content')
+    if (container) {
+      container.remove()
+    } else if (group) {
+      group.remove()
+    } else {
+      target.remove()
+    }
+    return doc.body.innerHTML
+  } catch (e) {
+    console.warn('Failed to update rawHtml:', e)
+    return rawHtml
+  }
 }

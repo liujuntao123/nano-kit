@@ -40,7 +40,7 @@ export default function LeftSidebar() {
             <div className="text-xs text-[var(--text-tertiary)] font-medium mb-2 px-2">创作工具</div>
             <div className="space-y-1">
               <NavCard
-                to="/create"
+                to="/"
                 icon={<ImageIcon />}
                 title="生成图片"
                 desc="自定义生图"
@@ -95,7 +95,7 @@ export default function LeftSidebar() {
             <div className="text-xs text-[var(--text-tertiary)] font-medium mb-2 px-2">设置与管理</div>
             <div className="space-y-1">
               <NavCard
-                to="/"
+                to="/records"
                 icon={<GridIcon />}
                 title="作品管理"
                 desc="浏览与管理作品"

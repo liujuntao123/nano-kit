@@ -25,7 +25,8 @@ export default function SettingsPage() {
     deleteProvider,
     setActiveProvider,
     setActiveTextProvider,
-    showToast
+    showToast,
+    showConfirm
   } = useAppStore()
   const { setHeader } = usePageHeader()
 
@@ -98,10 +99,15 @@ export default function SettingsPage() {
 
   const handleDelete = () => {
     if (!formData.id) return
-    if (confirm('确定删除该渠道?')) {
-      deleteProvider(formData.id)
-      clearForm()
-    }
+    showConfirm({
+      title: '删除渠道',
+      message: '确定删除该渠道?',
+      type: 'danger',
+      onConfirm: () => {
+        deleteProvider(formData.id!)
+        clearForm()
+      }
+    })
   }
 
   const activeImageLabel = providerById.get(activeProviderId)?.name || '未选择'

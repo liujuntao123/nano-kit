@@ -2,6 +2,27 @@ import { create } from 'zustand'
 import type { Provider, Session, Message, ImageState, ToastState, ToastType } from '../types'
 import * as db from '../utils/db'
 
+interface ConfirmDialogState {
+  visible: boolean
+  title: string
+  message: string
+  confirmText: string
+  cancelText: string
+  type: 'default' | 'danger'
+  onConfirm: (() => void) | null
+  onCancel: (() => void) | null
+}
+
+interface ConfirmOptions {
+  title?: string
+  message: string
+  confirmText?: string
+  cancelText?: string
+  type?: 'default' | 'danger'
+  onConfirm?: () => void
+  onCancel?: () => void
+}
+
 interface AppState {
   // Theme
   theme: 'light' | 'dark'
@@ -12,6 +33,11 @@ interface AppState {
   toast: ToastState
   showToast: (message: string, type?: ToastType, duration?: number) => void
   hideToast: () => void
+
+  // Confirm Dialog
+  confirmDialog: ConfirmDialogState
+  showConfirm: (options: ConfirmOptions) => void
+  hideConfirm: () => void
 
   // Lightbox
   lightboxImage: string | null
@@ -107,6 +133,37 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   hideToast: () => {
     set(state => ({ toast: { ...state.toast, visible: false } }))
+  },
+
+  // Confirm Dialog
+  confirmDialog: {
+    visible: false,
+    title: '',
+    message: '',
+    confirmText: '确定',
+    cancelText: '取消',
+    type: 'default',
+    onConfirm: null,
+    onCancel: null
+  },
+  showConfirm: (options) => {
+    set({
+      confirmDialog: {
+        visible: true,
+        title: options.title || '',
+        message: options.message,
+        confirmText: options.confirmText || '确定',
+        cancelText: options.cancelText || '取消',
+        type: options.type || 'default',
+        onConfirm: options.onConfirm || null,
+        onCancel: options.onCancel || null
+      }
+    })
+  },
+  hideConfirm: () => {
+    set(state => ({
+      confirmDialog: { ...state.confirmDialog, visible: false, onConfirm: null, onCancel: null }
+    }))
   },
 
   // Lightbox

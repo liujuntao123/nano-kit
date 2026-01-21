@@ -8,7 +8,7 @@ export default function MyPromptsPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const { showToast, setPendingInputText } = useAppStore()
+  const { showToast, setPendingInputText, showConfirm } = useAppStore()
   const { setHeader } = usePageHeader()
 
   const [prompts, setPrompts] = useState<CustomPrompt[]>([])
@@ -92,9 +92,15 @@ export default function MyPromptsPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (!confirm('确定删除这条提示词吗？')) return
-    savePrompts(prompts.filter(p => p.id !== id))
-    showToast('已删除', 'success')
+    showConfirm({
+      title: '删除提示词',
+      message: '确定删除这条提示词吗？',
+      type: 'danger',
+      onConfirm: () => {
+        savePrompts(prompts.filter(p => p.id !== id))
+        showToast('已删除', 'success')
+      }
+    })
   }
 
   const handleEdit = (prompt: CustomPrompt) => {

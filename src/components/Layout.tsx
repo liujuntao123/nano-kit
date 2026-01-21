@@ -7,6 +7,7 @@ import HomePage from '../pages/HomePage'
 import GeneratePage from '../pages/GeneratePage'
 import SettingsPage from '../pages/SettingsPage'
 import BananaModal from './modals/BananaModal'
+import ConfirmDialog from './ui/ConfirmDialog'
 import ArticleIllustrationPage from '../pages/ArticleIllustrationPage'
 import XHSImagesPage from '../pages/XHSImagesPage'
 import InfographicPage from '../pages/InfographicPage'
@@ -31,7 +32,6 @@ export default function Layout() {
             <Routes>
               <Route path="/" element={<GeneratePage />} />
               <Route path="/records" element={<HomePage />} />
-              <Route path="/create" element={<GeneratePage />} />
               <Route path="/article-images" element={<ArticleIllustrationPage />} />
               <Route path="/xhs-images" element={<XHSImagesPage />} />
               <Route path="/infographic" element={<InfographicPage />} />
@@ -46,6 +46,7 @@ export default function Layout() {
 
       {/* Modals */}
       <BananaModal />
+      <ConfirmDialog />
     </div>
   )
 }

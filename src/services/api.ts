@@ -1,5 +1,5 @@
 import { useAppStore } from '../store/appStore'
-import { nativeFetch, escapeHtml, buildDynamicImageModel } from '../utils/helpers'
+import { nativeFetch, escapeHtml, buildDynamicImageModel, buildOpenAIUrl, buildGeminiUrl } from '../utils/helpers'
 import type { ImageState } from '../types'
 import * as db from '../utils/db'
 
@@ -123,7 +123,7 @@ async function callOpenAIAPI(
     payload.aspect_ratio = aspectRatio
   }
 
-  const res = await nativeFetch(`${config.host.replace(/\/$/, '')}/v1/chat/completions`, {
+  const res = await nativeFetch(buildOpenAIUrl(config.host, '/chat/completions'), {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${config.key}`,
@@ -175,7 +175,7 @@ async function callGeminiAPI(
   const payload = { contents, generationConfig }
 
   const res = await nativeFetch(
-    `${config.host.replace(/\/$/, '')}/v1beta/models/${model}:generateContent`,
+    buildGeminiUrl(config.host, `/models/${model}:generateContent`),
     {
       method: 'POST',
       headers: {

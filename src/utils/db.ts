@@ -49,6 +49,11 @@ export async function getSessionMessages(sessionId: number): Promise<Message[]> 
   return messages
 }
 
+export async function getMessage(messageId: number): Promise<Message | undefined> {
+  const database = await initDB()
+  return database.get('messages', messageId)
+}
+
 export async function saveMessage(
   sessionId: number,
   role: 'user' | 'bot',
@@ -97,6 +102,14 @@ export async function deleteSession(sessionId: number): Promise<void> {
 export async function deleteMessage(messageId: number): Promise<void> {
   const database = await initDB()
   await database.delete('messages', messageId)
+}
+
+export async function updateMessage(message: Message): Promise<void> {
+  if (!message.id) {
+    throw new Error('Missing message id')
+  }
+  const database = await initDB()
+  await database.put('messages', message)
 }
 
 export async function updateSessionTitle(sessionId: number, title: string): Promise<void> {

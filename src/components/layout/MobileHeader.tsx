@@ -1,6 +1,5 @@
 import { useAppStore } from '../../store/appStore'
 import { Link } from 'react-router-dom'
-import { LogoMark } from '../ui/Logo'
 
 export default function MobileHeader() {
   const { toggleLeftSidebar, toggleTheme, theme } = useAppStore()
@@ -22,12 +21,12 @@ export default function MobileHeader() {
       </button>
 
       {/* Center: Logo */}
-      <Link to="/" className="flex items-center gap-2">
+      {/* <Link to="/" className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center">
           <LogoMark className="w-5 h-5 text-[var(--text-primary)]" />
         </div>
         <span className="font-semibold text-sm tracking-tight lowercase">nano kit</span>
-      </Link>
+      </Link> */}
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1">

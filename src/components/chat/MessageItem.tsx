@@ -9,7 +9,7 @@ interface MessageItemProps {
 
 export default function MessageItem({ message }: MessageItemProps) {
   const navigate = useNavigate()
-  const { openLightbox, deleteMessage, openSlicerModal, addInputImage, showToast } = useAppStore()
+  const { openLightbox, deleteMessage, openSlicerModal, addInputImage, showToast, showConfirm } = useAppStore()
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -74,9 +74,12 @@ export default function MessageItem({ message }: MessageItemProps) {
             {message.id && (
               <button
                 onClick={() => {
-                  if (confirm('确定删除这条消息吗？')) {
-                    deleteMessage(message.id!)
-                  }
+                  showConfirm({
+                    title: '删除消息',
+                    message: '确定删除这条消息吗？',
+                    type: 'danger',
+                    onConfirm: () => deleteMessage(message.id!)
+                  })
                 }}
                 className="hover:text-[var(--danger-color)] flex items-center gap-1"
               >

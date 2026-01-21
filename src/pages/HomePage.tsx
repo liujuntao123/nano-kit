@@ -5,7 +5,7 @@ import { useAppStore } from '../store/appStore'
 import { usePageHeader } from '../components/layout/PageHeaderContext'
 
 export default function HomePage() {
-  const { bumpGalleryRefreshKey, clearAllSessions } = useAppStore()
+  const { bumpGalleryRefreshKey, clearAllSessions, showConfirm } = useAppStore()
   const { setHeader } = usePageHeader()
   const [count, setCount] = useState(0)
 
@@ -20,9 +20,12 @@ export default function HomePage() {
       </button>
       <button
         onClick={() => {
-          if (confirm('确定要清空全部作品吗？此操作不可恢复！')) {
-            clearAllSessions()
-          }
+          showConfirm({
+            title: '清空全部作品',
+            message: '确定要清空全部作品吗？此操作不可恢复！',
+            type: 'danger',
+            onConfirm: () => clearAllSessions()
+          })
         }}
         className="px-3 py-2 rounded-xl bg-[var(--danger-color)] text-white text-sm shadow-sm hover:opacity-90 transition-opacity"
       >

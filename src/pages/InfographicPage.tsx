@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store/appStore'
-import { buildDynamicImageModel, downloadImage, nativeFetch } from '../utils/helpers'
+import { buildDynamicImageModel, buildGeminiUrl, buildOpenAIUrl, downloadImage, nativeFetch } from '../utils/helpers'
 import { usePageHeader } from '../components/layout/PageHeaderContext'
 
 type InfographicStylePreset = {
@@ -657,7 +657,7 @@ export default function InfographicPage() {
       let rawContent = ''
 
       if (textConfig.type === 'openai') {
-        const res = await nativeFetch(`${textConfig.host.replace(/\/+$/, '')}/v1/chat/completions`, {
+        const res = await nativeFetch(buildOpenAIUrl(textConfig.host, '/chat/completions'), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${textConfig.key}`,
@@ -686,7 +686,7 @@ export default function InfographicPage() {
         rawContent = data.choices?.[0]?.message?.content || ''
       } else {
         const res = await nativeFetch(
-          `${textConfig.host.replace(/\/$/, '')}/v1beta/models/${textConfig.textModel}:generateContent`,
+          buildGeminiUrl(textConfig.host, `/models/${textConfig.textModel}:generateContent`),
           {
             method: 'POST',
             headers: {
@@ -799,7 +799,7 @@ export default function InfographicPage() {
         if (quality === '2K') size = '2048x2048'
         else if (quality === '4K') size = '4096x4096'
 
-        const res = await nativeFetch(`${config.host.replace(/\/+$/, '')}/v1/chat/completions`, {
+        const res = await nativeFetch(buildOpenAIUrl(config.host, '/chat/completions'), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${config.key}`,
@@ -821,7 +821,7 @@ export default function InfographicPage() {
         const match = content.match(/!\[.*?\]\((data:image\/[^)]+)\)/)
         if (match) imageData = match[1]
       } else {
-        const res = await nativeFetch(`${config.host.replace(/\/+$/, '')}/v1beta/models/${model}:generateContent`, {
+        const res = await nativeFetch(buildGeminiUrl(config.host, `/models/${model}:generateContent`), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -896,9 +896,6 @@ export default function InfographicPage() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-lg font-semibold tracking-tight truncate">信息图</h1>
-              <p className="text-xs text-[var(--text-tertiary)] mt-1 font-serif">
-                将内容整理成单页高密度信息图，生成可直接生图的提示词
-              </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -910,12 +907,6 @@ export default function InfographicPage() {
               >
                 {isConfigOpen ? '收起输入' : '展开输入'}
               </button>
-              <Link
-                to="/settings"
-                className="px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-sm shadow-sm hover:bg-[var(--bg-tertiary)] transition-colors"
-              >
-                去设置
-              </Link>
             </div>
           </div>
         </div>

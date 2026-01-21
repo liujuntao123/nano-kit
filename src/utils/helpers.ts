@@ -49,6 +49,37 @@ export function nativeFetch(input: RequestInfo | URL, init?: RequestInit): Promi
   return window.fetch(proxyUrl, init)
 }
 
+function normalizeHost(host: string): string {
+  return (host || '').trim().replace(/\/+$/, '')
+}
+
+function joinUrl(base: string, path: string): string {
+  const normalizedPath = (path || '').replace(/^\/+/, '')
+  if (!normalizedPath) return base
+  const normalizedBase = base.replace(/\/+$/, '')
+  if (normalizedBase.toLowerCase().endsWith(`/${normalizedPath.toLowerCase()}`)) {
+    return normalizedBase
+  }
+  return `${normalizedBase}/${normalizedPath}`
+}
+
+function ensureVersionedHost(host: string, version: string, versionRegex: RegExp): string {
+  const normalized = normalizeHost(host)
+  if (!normalized) return normalized
+  if (versionRegex.test(normalized)) return normalized
+  return `${normalized}/${version}`
+}
+
+export function buildOpenAIUrl(host: string, path: string): string {
+  const base = ensureVersionedHost(host, 'v1', /\/v\d+(?=\/|$)/i)
+  return joinUrl(base, path)
+}
+
+export function buildGeminiUrl(host: string, path: string): string {
+  const base = ensureVersionedHost(host, 'v1beta', /\/v1beta(?=\/|$)/i)
+  return joinUrl(base, path)
+}
+
 // Best-effort MIME detection for base64 image payloads (stored without data: prefix in DB).
 export function guessImageMimeType(base64OrDataUrl: string): string {
   const s = (base64OrDataUrl || '').trim()
