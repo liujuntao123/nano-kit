@@ -13,6 +13,7 @@ export interface Provider {
   textModel: string
   imageModel: string
   capabilities: ProviderCapabilities
+  enableModelSuffix?: boolean
 }
 
 // Session and Message types

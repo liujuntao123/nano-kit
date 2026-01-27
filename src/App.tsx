@@ -6,12 +6,16 @@ import Lightbox from './components/ui/Lightbox'
 import GlobalLoading from './components/ui/GlobalLoading'
 
 function App() {
-  const { theme, initTheme, initDB } = useAppStore()
+  const { theme, initTheme, initProviders, initDB } = useAppStore()
 
   useEffect(() => {
     initTheme()
+    initProviders()
+  }, [initTheme, initProviders])
+
+  useEffect(() => {
     initDB()
-  }, [initTheme, initDB])
+  }, [initDB])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')

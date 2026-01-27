@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  envPrefix: ['VITE_', 'PROXY'],
+  resolve: {
+    alias: {
+      '@': '/src'
+    }
+  },
+  envPrefix: ['VITE_', 'PROXY']
 })
-

@@ -1,4 +1,4 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb'
+import { openDB, deleteDB, DBSchema, IDBPDatabase } from 'idb'
 import type { Session, Message } from '../types'
 
 interface GeminiDB extends DBSchema {
@@ -17,12 +17,19 @@ const DB_NAME = 'GeminiProDB'
 const DB_VERSION = 2
 
 let db: IDBPDatabase<GeminiDB> | null = null
+let initPromise: Promise<IDBPDatabase<GeminiDB>> | null = null
+let blockedHandler: (() => void) | null = null
+
+export function setDBBlockedHandler(handler: (() => void) | null) {
+  blockedHandler = handler
+}
 
 // Main DB functions
 export async function initDB(): Promise<IDBPDatabase<GeminiDB>> {
   if (db) return db
+  if (initPromise) return initPromise
 
-  db = await openDB<GeminiDB>(DB_NAME, DB_VERSION, {
+  initPromise = openDB<GeminiDB>(DB_NAME, DB_VERSION, {
     upgrade(database) {
       if (!database.objectStoreNames.contains('sessions')) {
         database.createObjectStore('sessions', { keyPath: 'id' })
@@ -31,10 +38,22 @@ export async function initDB(): Promise<IDBPDatabase<GeminiDB>> {
         const msgStore = database.createObjectStore('messages', { keyPath: 'id', autoIncrement: true })
         msgStore.createIndex('sessionId', 'sessionId', { unique: false })
       }
+    },
+    blocked() {
+      blockedHandler?.()
     }
   })
+    .then((database) => {
+      db = database
+      return database
+    })
+    .catch((error) => {
+      db = null
+      initPromise = null
+      throw error
+    })
 
-  return db
+  return initPromise
 }
 
 export async function getAllSessions(): Promise<Session[]> {
@@ -91,12 +110,15 @@ export async function deleteSession(sessionId: number): Promise<void> {
   // Delete all messages for this session
   const tx = database.transaction('messages', 'readwrite')
   const index = tx.store.index('sessionId')
-  let cursor = await index.openCursor(sessionId)
-  while (cursor) {
-    await cursor.delete()
-    cursor = await cursor.continue()
+  try {
+    let cursor = await index.openCursor(sessionId)
+    while (cursor) {
+      await cursor.delete()
+      cursor = await cursor.continue()
+    }
+  } finally {
+    await tx.done
   }
-  await tx.done
 }
 
 export async function deleteMessage(messageId: number): Promise<void> {
@@ -119,4 +141,13 @@ export async function updateSessionTitle(sessionId: number, title: string): Prom
     session.title = title
     await database.put('sessions', session)
   }
+}
+
+export async function resetDB(): Promise<void> {
+  if (db) {
+    db.close()
+    db = null
+  }
+  initPromise = null
+  await deleteDB(DB_NAME)
 }

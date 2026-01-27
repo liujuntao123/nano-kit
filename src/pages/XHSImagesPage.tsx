@@ -4,217 +4,25 @@ import { useAppStore } from '../store/appStore'
 import { buildDynamicImageModel, buildGeminiUrl, buildOpenAIUrl, downloadImage, nativeFetch } from '../utils/helpers'
 import { usePageHeader } from '../components/layout/PageHeaderContext'
 
-type StylePreset = {
-  id: string
-  name: string
-  desc: string
-  bestFor: string
-  reference: {
-    colors: string[]
-    background: string[]
-    accents: string[]
-    elements: string[]
-  }
-  palette: {
-    primary: string
-    background: string
-    accent: string
-  }
-  previewBg: string
-}
+import {
+  XHS_STYLE_PRESETS,
+  XHS_LAYOUT_PRESETS,
+  XHS_STYLE_KEYWORDS,
+  matchBestStyleId,
+  type ArticleStylePreset,
+  type XHSIllustrationBlock,
+  type BodyCountOption,
+  type XHSLayoutPreset,
+  type XHSLayoutPresetId
+} from '@/config/image-generation'
+import { parseJsonFromContent, toOneLine, asPlainObject, inferOrientation, toAspect } from '@/utils/prompt-helpers'
 
-type IllustrationBlock = {
-  id: string
-  kind: 'cover' | 'content' | 'ending'
-  title: string
-  source: string
-  prompt: string
-  imageData?: string
-}
+type StylePreset = ArticleStylePreset
+type IllustrationBlock = XHSIllustrationBlock
+type LayoutPreset = XHSLayoutPreset
 
-type BodyCountOption = 'auto' | 1 | 2 | 3 | 4 | 6 | 8 | 10
-
-type LayoutPreset = {
-  id: 'sparse' | 'balanced' | 'dense' | 'list' | 'comparison' | 'flow'
-  name: string
-  desc: string
-  bestFor: string
-  keyPoints: string[]
-}
-
-const STYLE_PRESETS: StylePreset[] = [
-  {
-    id: 'cute',
-    name: '甜美可爱（默认）',
-    desc: '小红书经典甜酷少女感',
-    bestFor: '美妆/穿搭/生活方式/日常小技巧',
-    reference: {
-      colors: ['粉色 (#FED7E2)', '蜜桃 (#FEEBC8)', '薄荷绿 (#C6F6D5)', '薰衣草紫 (#E9D8FD)'],
-      background: ['奶油白 (#FFFAF0)', '柔粉 (#FFF5F7)'],
-      accents: ['亮粉', '珊瑚色'],
-      elements: ['爱心', '星星', '闪光', '贴纸风元素', '可爱表情', '丝带装饰', 'emoji图标']
-    },
-    palette: { primary: '#FED7E2', background: '#FFFAF0', accent: '#F56565' },
-    previewBg: '/style-previews/cute.jpeg'
-  },
-  {
-    id: 'fresh',
-    name: '清新自然',
-    desc: '干净、清爽、呼吸感强',
-    bestFor: '健康/养生/自律/极简生活/自我关怀',
-    reference: {
-      colors: ['薄荷绿 (#9AE6B4)', '天空蓝 (#90CDF4)', '浅黄 (#FAF089)'],
-      background: ['纯白 (#FFFFFF)', '柔薄荷 (#F0FFF4)'],
-      accents: ['叶绿', '水蓝'],
-      elements: ['植物叶片', '云朵', '水滴', '简单几何', '大留白/开放式构图']
-    },
-    palette: { primary: '#9AE6B4', background: '#FFFFFF', accent: '#90CDF4' },
-    previewBg: '/style-previews/fresh.jpeg'
-  },
-  {
-    id: 'tech',
-    name: '科技数码',
-    desc: '现代、聪明、数字感',
-    bestFor: 'AI/工具推荐/效率方法/数码产品',
-    reference: {
-      colors: ['深蓝 (#1A365D)', '紫色 (#6B46C1)', '电光青 (#00D4FF)'],
-      background: ['深灰 (#1A202C)', '近黑 (#0D1117)'],
-      accents: ['霓虹绿 (#00FF88)', '电蓝'],
-      elements: ['电路纹理', '数据图标', '几何网格', '微发光效果', '科技装饰线']
-    },
-    palette: { primary: '#1A365D', background: '#0D1117', accent: '#00D4FF' },
-    previewBg: '/style-previews/tech.jpeg'
-  },
-  {
-    id: 'warm',
-    name: '温暖治愈',
-    desc: '松弛、友好、亲和',
-    bestFor: '生活感悟/个人故事/情绪价值/关系与成长',
-    reference: {
-      colors: ['暖橙 (#ED8936)', '金黄 (#F6AD55)', '陶土橙 (#C05621)'],
-      background: ['奶油白 (#FFFAF0)', '柔桃色 (#FED7AA)'],
-      accents: ['深棕 (#744210)', '柔红'],
-      elements: ['阳光光晕', '咖啡/生活小物', '暖光效果', '圆润装饰', '友好图标']
-    },
-    palette: { primary: '#ED8936', background: '#FFFAF0', accent: '#744210' },
-    previewBg: '/style-previews/warm.jpeg'
-  },
-  {
-    id: 'bold',
-    name: '强烈冲击',
-    desc: '高对比、抓眼、强调重点',
-    bestFor: '重要提醒/避坑/必看清单/高能结论',
-    reference: {
-      colors: ['亮红 (#E53E3E)', '明橙 (#DD6B20)', '电黄 (#F6E05E)'],
-      background: ['纯黑 (#000000)', '深炭黑'],
-      accents: ['白色', '霓虹黄'],
-      elements: ['感叹号', '箭头', '警示图标', '强形状', '夸张对比', '戏剧化构图']
-    },
-    palette: { primary: '#E53E3E', background: '#000000', accent: '#F6E05E' },
-    previewBg: '/style-previews/bold.jpeg'
-  },
-  {
-    id: 'minimal',
-    name: '极简高级',
-    desc: '克制、干净、有质感',
-    bestFor: '严肃内容/职业建议/表达清晰的总结卡',
-    reference: {
-      colors: ['纯黑 (#000000)', '纯白 (#FFFFFF)'],
-      background: ['微灰 (#FAFAFA)', '纯白'],
-      accents: ['单一强调色（从内容中选取）'],
-      elements: ['细线条', '单一视觉中心', '最大留白', '极简装饰']
-    },
-    palette: { primary: '#000000', background: '#FAFAFA', accent: '#3B82F6' },
-    previewBg: '/style-previews/minimal.jpeg'
-  },
-  {
-    id: 'retro',
-    name: '复古怀旧',
-    desc: '复古潮流、旧报纸/做旧纸感',
-    bestFor: '怀旧内容/经典建议/复盘总结',
-    reference: {
-      colors: ['做旧橙（muted orange）', '灰粉 (#FED7E2 70%)', '复古青（faded teal）'],
-      background: ['做旧纸 (#F5E6D3)', '棕褐/sepia'],
-      accents: ['褪色红', '复古金'],
-      elements: ['半色调点阵', '复古徽章', '胶带效果', '做旧纹理叠层']
-    },
-    palette: { primary: '#DD6B20', background: '#F5E6D3', accent: '#C9A962' },
-    previewBg: '/style-previews/retro.jpeg'
-  },
-  {
-    id: 'pop',
-    name: '潮流爆款',
-    desc: '高饱和、活力、漫画感',
-    bestFor: '强互动/有趣知识/热点玩法/教程吸睛版',
-    reference: {
-      colors: ['亮红 (#F56565)', '亮黄 (#ECC94B)', '亮蓝 (#4299E1)', '亮绿 (#48BB78)'],
-      background: ['白色 (#FFFFFF)', '浅灰'],
-      accents: ['霓虹粉', '电紫'],
-      elements: ['漫画气泡', '爆炸星芒', '粗线条形状', '动态构图', '高能效果贴纸']
-    },
-    palette: { primary: '#F56565', background: '#FFFFFF', accent: '#805AD5' },
-    previewBg: '/style-previews/pop.jpeg'
-  },
-  {
-    id: 'notion',
-    name: '知识手绘',
-    desc: '极简线稿、知识卡片感',
-    bestFor: '知识分享/概念解释/生产力/效率技巧',
-    reference: {
-      colors: ['黑色 (#1A1A1A)', '深灰 (#4A4A4A)'],
-      background: ['纯白 (#FFFFFF)', '微灰 (#FAFAFA)'],
-      accents: ['粉彩蓝 (#A8D4F0)', '粉彩黄 (#F9E79F)', '粉彩粉 (#FADBD8)'],
-      elements: ['简线涂鸦', '轻微手绘抖动', '几何形状', '火柴人', '最大留白']
-    },
-    palette: { primary: '#1A1A1A', background: '#FFFFFF', accent: '#A8D4F0' },
-    previewBg: '/style-previews/notion.jpeg'
-  }
-]
-
-const LAYOUT_PRESETS: LayoutPreset[] = [
-  {
-    id: 'sparse',
-    name: '稀疏',
-    desc: '信息少，冲击强',
-    bestFor: '封面/结尾、1-2 个重点',
-    keyPoints: ['1-2 个重点', '留白 50%+', '大标题/大图标', '强视觉中心']
-  },
-  {
-    id: 'balanced',
-    name: '平衡',
-    desc: '标准卡片结构',
-    bestFor: '3-4 个要点、常规内容页',
-    keyPoints: ['3-4 个要点', '结构清晰', '图文平衡', '易阅读']
-  },
-  {
-    id: 'dense',
-    name: '密集',
-    desc: '高信息密度干货卡',
-    bestFor: '5-8 个要点、总结/清单/速查',
-    keyPoints: ['5-8 个要点', '分区网格', '信息层级强', '留白 20-30%']
-  },
-  {
-    id: 'list',
-    name: '列表',
-    desc: '枚举/排行结构',
-    bestFor: '4-7 项清单、工具推荐',
-    keyPoints: ['编号列表', '每项 1 行核心', '统一结构', '高亮关键词']
-  },
-  {
-    id: 'comparison',
-    name: '对比',
-    desc: '左右对照',
-    bestFor: 'A/B 对比、优缺点、前后变化',
-    keyPoints: ['左右分栏', '对照清晰', '差异高亮', '同维度对齐']
-  },
-  {
-    id: 'flow',
-    name: '流程',
-    desc: '步骤/时间线',
-    bestFor: '3-6 步流程、方法/教程',
-    keyPoints: ['步骤编号', '箭头引导', '一步一图标', '起承转合']
-  }
-]
+const STYLE_PRESETS = XHS_STYLE_PRESETS
+const LAYOUT_PRESETS = XHS_LAYOUT_PRESETS
 
 export default function XHSImagesPage() {
   const navigate = useNavigate()
@@ -335,37 +143,10 @@ export default function XHSImagesPage() {
     [bodyCount, autoBodyCount]
   )
 
-  const autoStyleId = useMemo(() => {
-    const text = article.trim().toLowerCase()
-    if (!text) return 'cute'
-
-    const rules: Array<{ id: string; keywords: string[] }> = [
-      { id: 'cute', keywords: ['美妆', '护肤', '化妆', '穿搭', '时尚', '少女', '女孩', '粉', 'pink', 'cute', 'girly'] },
-      { id: 'fresh', keywords: ['健康', '养生', '自律', '清新', '自然', '轻食', 'wellness', 'self-care', 'organic', 'clean'] },
-      { id: 'tech', keywords: ['ai', 'aigc', 'llm', '大模型', '人工智能', '算法', '数据', '编程', '代码', '开发', 'app', '工具', 'tool', '效率', '生产力'] },
-      { id: 'warm', keywords: ['生活', '故事', '情绪', '情感', '成长', '治愈', '陪伴', '关系', '日常', '温暖'] },
-      { id: 'bold', keywords: ['警告', '重要', '必须', '避坑', '踩坑', '别再', '风险', '注意', '必看', '必收藏'] },
-      { id: 'minimal', keywords: ['极简', '简洁', '高级', '干净', '专业', '商务', '职场', '策略', '复盘'] },
-      { id: 'retro', keywords: ['复古', '怀旧', '经典', '老派', 'vintage', 'retro', '年代'] },
-      { id: 'pop', keywords: ['惊呆', '震惊', '炸裂', '上头', '好玩', '有趣', 'fun', 'wow', 'amazing', '爆款', '种草'] },
-      { id: 'notion', keywords: ['知识', '概念', '方法论', '生产力', '效率', '笔记', '总结', '框架', 'saaS', 'notion'] }
-    ]
-
-    let bestId = 'cute'
-    let bestScore = 0
-    for (const rule of rules) {
-      let score = 0
-      for (const kw of rule.keywords) {
-        if (!kw) continue
-        if (text.includes(kw.toLowerCase())) score += 1
-      }
-      if (score > bestScore) {
-        bestScore = score
-        bestId = rule.id
-      }
-    }
-    return bestId
-  }, [article])
+  const autoStyleId = useMemo(
+    () => matchBestStyleId(article, XHS_STYLE_KEYWORDS, 'cute'),
+    [article]
+  )
 
   const autoStyle = useMemo(() => {
     return STYLE_PRESETS.find(s => s.id === autoStyleId) || STYLE_PRESETS.find(s => s.id === 'cute') || STYLE_PRESETS[0]
@@ -376,7 +157,7 @@ export default function XHSImagesPage() {
     return STYLE_PRESETS.find(s => s.id === effectiveId) || STYLE_PRESETS.find(s => s.id === 'cute') || STYLE_PRESETS[0]
   }, [styleId, autoStyleId])
 
-  const autoLayoutId = useMemo(() => {
+  const autoLayoutId = useMemo<XHSLayoutPresetId>(() => {
     const text = article.trim().toLowerCase()
     if (!text) return 'balanced'
 
@@ -419,39 +200,6 @@ export default function XHSImagesPage() {
     reader.readAsText(file)
   }
 
-  const parseJsonFromContent = (content: string): unknown => {
-    const cleaned = content.replace(/```json|```/gi, '').trim()
-    try {
-      return JSON.parse(cleaned)
-    } catch {
-      // best-effort extract
-      const objStart = cleaned.indexOf('{')
-      const objEnd = cleaned.lastIndexOf('}')
-      if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
-        try {
-          return JSON.parse(cleaned.slice(objStart, objEnd + 1))
-        } catch {}
-      }
-
-      const arrStart = cleaned.indexOf('[')
-      const arrEnd = cleaned.lastIndexOf(']')
-      if (arrStart !== -1 && arrEnd !== -1 && arrEnd > arrStart) {
-        try {
-          return JSON.parse(cleaned.slice(arrStart, arrEnd + 1))
-        } catch {}
-      }
-      throw new Error('无法解析模型返回的 JSON')
-    }
-  }
-
-  const toOneLine = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '')
-
-  const asPlainObject = (v: unknown): Record<string, any> | null => {
-    if (typeof v !== 'object' || v === null) return null
-    if (Array.isArray(v)) return null
-    return v as Record<string, any>
-  }
-
   const buildStylePrompt = (style: StylePreset) => {
     const parts: string[] = [`${style.name}（${style.desc}）`]
     const ref = style.reference
@@ -460,16 +208,6 @@ export default function XHSImagesPage() {
     if (ref.accents?.length) parts.push(`点缀：${ref.accents.join('、')}`)
     if (ref.elements?.length) parts.push(`元素：${ref.elements.join('、')}`)
     return parts.join('；')
-  }
-
-  const inferOrientation = (r: string): 'Landscape (horizontal)' | 'Portrait (vertical)' | 'Square' => {
-    const parts = r.split(':').map(n => Number(n))
-    if (parts.length !== 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1]) || parts[0] <= 0 || parts[1] <= 0) {
-      return 'Square'
-    }
-    if (parts[0] > parts[1]) return 'Landscape (horizontal)'
-    if (parts[0] < parts[1]) return 'Portrait (vertical)'
-    return 'Square'
   }
 
   const buildXhsBasePromptLines = (r: string) => {
@@ -904,7 +642,7 @@ export default function XHSImagesPage() {
       return
     }
 
-    const model = buildDynamicImageModel(config.imageModel, quality, ratio)
+    const model = buildDynamicImageModel(config.imageModel, quality, ratio, config.enableModelSuffix ?? true)
 
     setBlocks(prev => {
       const next = [...prev]
@@ -1004,12 +742,6 @@ export default function XHSImagesPage() {
     showToast('已复制提示词', 'success')
   }
 
-  const toAspect = (r: string) => {
-    const parts = r.split(':').map(n => Number(n))
-    if (parts.length !== 2 || !parts[0] || !parts[1]) return '1 / 1'
-    return `${parts[0]} / ${parts[1]}`
-  }
-
   return (
     <div className="h-full overflow-hidden">
       <div className="h-full flex flex-col">
@@ -1041,7 +773,7 @@ export default function XHSImagesPage() {
               isConfigOpen ? 'block' : 'hidden'
             ].join(' ')}
           >
-            <div className="mb-4">
+            <div className="mb-3">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium">内容输入</label>
                 <button
@@ -1055,7 +787,7 @@ export default function XHSImagesPage() {
                 value={article}
                 onChange={(e) => setArticle(e.target.value)}
                 placeholder="粘贴小红书笔记/文章内容，或点击右上角上传文件..."
-                className="w-full px-3 py-2 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] h-56 resize-none shadow-sm font-serif"
+                className="w-full px-3 py-2 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] h-32 resize-none shadow-sm font-serif"
               />
               <input
                 ref={articleFileRef}
@@ -1067,7 +799,7 @@ export default function XHSImagesPage() {
               <button
                 onClick={extractBlocks}
                 disabled={extracting}
-                className="w-full mt-3 px-4 py-3 bg-[var(--accent-color)] text-white rounded-xl hover:bg-[var(--accent-hover)] disabled:opacity-50 transition-colors shadow-sm flex items-center justify-center gap-2"
+                className="w-full mt-2 px-4 py-2.5 bg-[var(--accent-color)] text-white rounded-xl hover:bg-[var(--accent-hover)] disabled:opacity-50 transition-colors shadow-sm flex items-center justify-center gap-2"
               >
                 {extracting ? (
                   <>
@@ -1080,10 +812,10 @@ export default function XHSImagesPage() {
               </button>
             </div>
 
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 shadow-sm mb-4">
-              <div className="text-sm font-medium mb-3">配置</div>
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <div className="flex items-center gap-4">
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-3 shadow-sm mb-3">
+              <div className="text-sm font-medium mb-2">配置</div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -1106,7 +838,7 @@ export default function XHSImagesPage() {
                 <div className="text-xs text-[var(--text-tertiary)]">共 {totalCount} 张</div>
               </div>
 
-              <label className="block text-sm mb-1">中间内容页数量</label>
+              <label className="block text-sm mb-0.5">中间内容页数量</label>
               <select
                 value={bodyCount}
                 onChange={(e) => {
@@ -1114,7 +846,7 @@ export default function XHSImagesPage() {
                   if (v === 'auto') setBodyCount('auto')
                   else setBodyCount(Number(v) as BodyCountOption)
                 }}
-                className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
+                className="w-full px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm shadow-sm"
               >
                 <option value="auto">自动（推荐 {autoBodyCount} 张）</option>
                 <option value={1}>1 张</option>
@@ -1123,11 +855,11 @@ export default function XHSImagesPage() {
                 ))}
               </select>
 
-              <label className="block text-sm mb-1 mt-3">默认信息布局</label>
+              <label className="block text-sm mb-0.5 mt-2">默认信息布局</label>
               <select
                 value={layoutId}
                 onChange={(e) => setLayoutId(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
+                className="w-full px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm shadow-sm"
               >
                 <option value="auto">自动（推荐 {autoLayout.name}）</option>
                 {LAYOUT_PRESETS.map(layout => (
@@ -1135,15 +867,15 @@ export default function XHSImagesPage() {
                 ))}
               </select>
 
-              <details className="mt-3">
+              <details className="mt-2">
                 <summary className="text-sm cursor-pointer select-none text-[var(--text-secondary)]">高级生成参数</summary>
-                <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className="grid grid-cols-2 gap-2 mt-2">
                   <div>
-                    <label className="block text-xs text-[var(--text-tertiary)] mb-1">分辨率</label>
+                    <label className="block text-xs text-[var(--text-tertiary)] mb-0.5">分辨率</label>
                     <select
                       value={quality}
                       onChange={(e) => setQuality(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
+                      className="w-full px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm shadow-sm"
                     >
                       <option value="1K">1K</option>
                       <option value="2K">2K</option>
@@ -1151,11 +883,11 @@ export default function XHSImagesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-tertiary)] mb-1">比例</label>
+                    <label className="block text-xs text-[var(--text-tertiary)] mb-0.5">比例</label>
                     <select
                       value={ratio}
                       onChange={(e) => setRatio(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
+                      className="w-full px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm shadow-sm"
                     >
                       <option value="2.35:1">2.35:1</option>
                       <option value="3:4">3:4</option>
@@ -1169,30 +901,34 @@ export default function XHSImagesPage() {
               </details>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm font-medium">配图风格</div>
-                <div className="text-xs text-[var(--text-tertiary)]">点击预览并选中</div>
+                <div className="text-xs text-[var(--text-tertiary)]">点击选择，预览看大图</div>
               </div>
 
-              <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-hidden shadow-sm mb-3">
-                <div className="bg-[var(--bg-tertiary)]" style={{ aspectRatio: '16 / 9' }}>
-                  <img
-                    src={selectedStyle.previewBg}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+              <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm mb-3">
                 <div className="p-3">
-                  <div className="text-sm font-medium truncate">
-                    {styleId === 'auto' ? `自动（推荐：${autoStyle.name}）` : selectedStyle.name}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {styleId === 'auto' ? `自动（推荐：${autoStyle.name}）` : selectedStyle.name}
+                      </div>
+                      <div className="text-xs text-[var(--text-tertiary)] font-serif mt-1">{selectedStyle.desc}</div>
+                      <div className="text-[11px] text-[var(--text-tertiary)] font-serif mt-1 line-clamp-2">{selectedStyle.bestFor}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openLightbox(selectedStyle.previewBg)}
+                      className="shrink-0 px-2.5 py-1.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs hover:bg-[var(--bg-tertiary)] transition-colors"
+                    >
+                      预览
+                    </button>
                   </div>
-                  <div className="text-xs text-[var(--text-tertiary)] font-serif mt-1">{selectedStyle.desc}</div>
-                  <div className="text-[11px] text-[var(--text-tertiary)] font-serif mt-1 line-clamp-2">{selectedStyle.bestFor}</div>
                 </div>
               </div>
 
-              <div className="max-h-80 overflow-y-auto pr-1">
+              <div className="max-h-96 overflow-y-auto pr-1">
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setStyleId('auto')}

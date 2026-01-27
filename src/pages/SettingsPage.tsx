@@ -12,7 +12,8 @@ function getEmptyForm(): Partial<Provider> {
     key: '',
     textModel: 'gemini-3-flash',
     imageModel: 'gemini-3-pro-image',
-    capabilities: { image: true, text: true }
+    capabilities: { image: true, text: true },
+    enableModelSuffix: false
   }
 }
 
@@ -73,7 +74,8 @@ export default function SettingsPage() {
       capabilities: {
         image: formData.capabilities?.image ?? true,
         text: formData.capabilities?.text ?? false
-      }
+      },
+      enableModelSuffix: formData.enableModelSuffix ?? true
     }
 
     if (!payload.name || !payload.host || !payload.key) {
@@ -134,6 +136,7 @@ export default function SettingsPage() {
               高性价比 API 站
             </a>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-[320px,1fr] gap-4">
             {/* Left: channel list */}
             <div className="space-y-3">
@@ -336,6 +339,29 @@ export default function SettingsPage() {
                     disabled={!(formData.capabilities?.image ?? true)}
                     className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm shadow-sm disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-[var(--bg-secondary)]"
                   />
+                </div>
+
+                {/* 模型名称拼接开关 */}
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm">
+                  <div>
+                    <div className="text-sm">模型名称拼接</div>
+                    <div className="text-[11px] text-[var(--text-tertiary)] font-serif">
+                      自动拼接分辨率和比例后缀，如gemini-3-pro-image-4k-16x9
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, enableModelSuffix: !(formData.enableModelSuffix ?? true) })}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${
+                      (formData.enableModelSuffix ?? true) ? 'bg-[var(--accent-color)]' : 'bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        (formData.enableModelSuffix ?? true) ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
 
                 <div className="flex gap-2 pt-2">

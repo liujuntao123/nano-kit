@@ -53,12 +53,14 @@ export async function sendMessage(text: string, images: ImageState[]) {
     if (config.type === 'openai') {
       data = await callOpenAIAPI(config, text, imagesBase64, {
         resolution,
-        aspectRatio
+        aspectRatio,
+        enableModelSuffix: config.enableModelSuffix ?? true
       })
     } else {
       data = await callGeminiAPI(config, text, imagesBase64, {
         resolution,
-        aspectRatio
+        aspectRatio,
+        enableModelSuffix: config.enableModelSuffix ?? true
       })
     }
 
@@ -87,8 +89,8 @@ async function callOpenAIAPI(
   imagesBase64: string[],
   options: any
 ) {
-  const { resolution, aspectRatio } = options
-  const model = buildDynamicImageModel(config.imageModel, resolution, aspectRatio)
+  const { resolution, aspectRatio, enableModelSuffix = true } = options
+  const model = buildDynamicImageModel(config.imageModel, resolution, aspectRatio, enableModelSuffix)
 
   const messages: any[] = []
 
@@ -151,8 +153,8 @@ async function callGeminiAPI(
   imagesBase64: string[],
   options: any
 ) {
-  const { resolution, aspectRatio } = options
-  const model = buildDynamicImageModel(config.imageModel, resolution, aspectRatio)
+  const { resolution, aspectRatio, enableModelSuffix = true } = options
+  const model = buildDynamicImageModel(config.imageModel, resolution, aspectRatio, enableModelSuffix)
 
   const contents: any[] = []
 

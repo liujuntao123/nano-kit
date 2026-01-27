@@ -3,178 +3,20 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store/appStore'
 import { buildDynamicImageModel, buildGeminiUrl, buildOpenAIUrl, downloadImage, nativeFetch } from '../utils/helpers'
 import { usePageHeader } from '../components/layout/PageHeaderContext'
+import {
+  INFOGRAPHIC_STYLE_PRESETS,
+  INFOGRAPHIC_LAYOUT_PRESETS,
+  INFOGRAPHIC_STYLE_KEYWORDS,
+  matchBestStyleId,
+  type InfographicStylePreset,
+  type InfographicBlock,
+  type InfographicSection,
+  type LayoutPreset
+} from '@/config/image-generation'
+import { parseJsonFromContent, toOneLine, asPlainObject, toStringArray, inferOrientation, toAspect } from '@/utils/prompt-helpers'
 
-type InfographicStylePreset = {
-  id: string
-  name: string
-  tag: string
-  preview: string
-  background: string
-  visual_style: string
-  word_style: string
-  content_principle: string
-  negative_space: string
-}
-
-type InfographicBlock = {
-  id: string
-  title: string
-  source: string
-  prompt: string
-  imageData?: string
-}
-
-type InfographicSection = {
-  heading: string
-  points: string[]
-  data: string[]
-}
-
-const STYLE_PRESETS: InfographicStylePreset[] = [
-  {
-    id: 'hand-drawn-visual-notes',
-    name: '手绘视觉笔记',
-    tag: '手绘,笔记,创意',
-    preview: '/previews/hand-drawn-visual-notes.jpg',
-    background: '背景为微黄的格纹纸或点阵纸纹理。',
-    visual_style: '「手绘视觉笔记」风格的信息图,使用马克笔、钢笔、圆珠笔质感的线条，包含随手画圆圈或强调线。',
-    word_style: '标题使用富有活力的手写体，正文使用整齐的小型手写字，重点词汇使用亮色荧光笔划线或染色。',
-    content_principle: '将抽象概念具象化为生动的角色或场景物件，保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '保持约25%的页边距，模拟真实笔记本的视觉感受。'
-  },
-  {
-    id: 'modern-vector-flat',
-    name: '现代矢量扁平插图',
-    tag: '扁平,矢量,现代',
-    preview: '/previews/modern-vector-flat.jpg',
-    background: '背景为纯净的浅色。',
-    visual_style: '「现代矢量扁平插图」风格的信息图,采用2.5D（等距视角）或纯扁平化风格。',
-    word_style: '使用无衬线现代字体，标题大而醒目，正文配有高饱和度的简约图标。',
-    content_principle: '将抽象概念具象化为生动的角色或场景物件；数据使用彩虹色的图表。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '布局平衡，四周保持均衡的呼吸感。'
-  },
-  {
-    id: 'black-neon',
-    name: '黑色荧光笔',
-    tag: '暗黑,霓虹,科技',
-    preview: '/previews/black-neon.jpg',
-    background: '背景为深黑色哑光质感或深灰磨砂底。',
-    visual_style: '「黑色荧光笔」风格的信息图,使用具有发光特效（Neon）的极简线条；连接线如同发光的导线或光束。',
-    word_style: '标题使用细长的未来感字体，文字呈现出半透明的发光感。',
-    content_principle: '将抽象概念具象化为生动的角色或场景物件；保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '适当留白，营造出深邃且聚焦的沉浸感。'
-  },
-  {
-    id: 'healing-journal',
-    name: '治愈系手帐',
-    tag: '治愈,手帐,温馨',
-    preview: '/previews/healing-journal.jpg',
-    background: '背景为带有纤维感的水彩纸或浅粉、浅棕色背景。',
-    visual_style: '「治愈系手帐」风格的信息图,边缘带有水彩晕染感作为装饰。',
-    word_style: '标题使用可爱的圆润手写体，文字颜色避免生硬的黑色。',
-    content_principle: '将抽象概念具象化为生动的角色或场景物件。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '采用错落有致的布局，在留白区域点缀少量手绘装饰元素。'
-  },
-  {
-    id: 'expert-whiteboard',
-    name: '专家白板教学',
-    tag: '白板,教学,专业',
-    preview: '/previews/expert-whiteboard.jpg',
-    background: '整个背景为一个纯净完整的白色平面或浅灰色网格平面。',
-    visual_style: '「专家白板教学」风格的信息图,使用马克笔手绘质感的线条、箭头和简化形象来构建结构清晰的信息图。',
-    word_style: '标题使用粗体手写风格，正文精简，使用不同颜色的马克笔区分重点。',
-    content_principle: '如果涉及具体形象，用抽象的简笔画替代；保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '保持适当留白，避免拥挤，确保一眼能看清逻辑流向。'
-  },
-  {
-    id: 'naval-modular',
-    name: '纳瓦尔式·模块手绘',
-    tag: '模块,系统,思维',
-    preview: '/previews/naval-modular.jpg',
-    background: '背景为纯净的白色，顶部有紫色的手绘波浪线作为标题装饰。',
-    visual_style: '「纳瓦尔式·模块手绘」风格的信息图,采用网格化布局，每个概念被封装在独立的方框中；配以简约的彩色手绘图标（如：沙漏、天平、靶心、齿轮），线条细而连贯，局部填充低饱和度的马卡龙色。',
-    word_style: '标题使用粗重的黑体手写感字体，正文使用纤细、整齐的手写体，逻辑连接词使用深色加粗强调。',
-    content_principle: '将复杂系统拆解为「层级」或「池」，使用箭头表示流向，并在底部点缀可爱的表情符号。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '布局紧凑且平衡，模块之间保持精准的等距间隙，营造出一种逻辑清晰、有条不紊的「操作系统」感。'
-  },
-  {
-    id: 'blackboard-comic',
-    name: '黑板漫画板书',
-    tag: '黑板,漫画,课堂',
-    preview: '/previews/blackboard-comic.jpg',
-    background: '背景为深灰色或墨绿色的磨砂黑板，带有真实的粉笔擦拭残留痕迹。',
-    visual_style: '「黑板漫画板书」风格的信息图,采用类似分镜漫画的四宫格或六宫格布局，边框为白粉笔手绘线条；角色使用极简的火柴人，逻辑线由带有箭头的粉笔线构成。',
-    word_style: '标题使用大号白色粉笔字体，正文使用较细的白色手写字体，重点词汇使用橙色、黄色或淡绿色粉笔进行高亮标注。',
-    content_principle: '通过「老师提问、学生回答」或「物体交互」的场景来具象化抽象概念；保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '在面板边缘留出黑板的厚度感，营造出一种在课堂现场即兴推演的叙事感。'
-  },
-  {
-    id: 'cornell-notes-stickers',
-    name: '康奈尔笔记·多色贴纸',
-    tag: '康奈尔,贴纸,学习',
-    preview: '/previews/cornell-notes-stickers.jpg',
-    background: '背景为带有米色格纹的康奈尔笔记本页面，左侧留有边注栏。',
-    visual_style: '「康奈尔笔记·多色贴纸」风格的信息图,核心内容分布在黄色、蓝色、粉色的彩色便利贴上，带有微弱的阴影和胶带粘贴痕迹；包含手绘的坐标轴曲线、金字塔结构图和简易图标（如垃圾桶、机器人）。',
-    word_style: '标题使用黑色马克笔体，正文使用黑色中性笔体，重点概念下方会有亮黄色荧光笔的半透明划线色块。',
-    content_principle: '左侧放置关键字（Keywords），右侧放置详细笔记（Note），底部放置总结或实践建议。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '模拟真实的笔记排版，边缘会有手动留出的页边距，并在空白处点缀「灯泡」或「感叹号」等提醒小图。'
-  },
-  {
-    id: 'bilingual-encyclopedia',
-    name: '百科图鉴',
-    tag: '双语,百科,专业',
-    preview: '/previews/bilingual-encyclopedia.jpg',
-    background: '背景为极简的浅灰色，具有轻微的纸张肌理感。',
-    visual_style: '「双语百科图鉴」风格的信息图,将摄影实拍图与现代数据图表结合。使用简约的线条图标。',
-    word_style: '标题采用粗体黑体，副标题为中英双语对照，正文使用排版严谨的无衬线体，色彩方案克制。',
-    content_principle: '保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '严格的模块化布局，保持清晰的阅读分割线，左右边距对称，视觉极其专业。'
-  },
-  {
-    id: 'chinese-painting-style',
-    name: '国风绘本',
-    tag: '国风,工笔,传统',
-    preview: '/previews/chinese-painting-style.jpg',
-    background: '背景为带有宣纸纹理的底色，四周有云纹或古典边框。',
-    visual_style: '「国风绘本」风格的信息图,采用精细的工笔重彩画风格。',
-    word_style: '标题使用带衬线的金色或米白色仿宋体/楷体，加方括号装饰。正文为清晰的印刷体，底部配以生动的概念性插画。',
-    content_principle: '保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '四周留有装饰性边框空间，中心区域排版紧凑，强调传统美学沉浸感。'
-  },
-  {
-    id: 'modern-info-card',
-    name: '现代风格说明卡',
-    tag: '玻璃拟态,3D,科技',
-    preview: '/previews/modern-info-card.jpg',
-    background: '背景为带有微弱发光的浅蓝色或纯白色实验室风格。',
-    visual_style: '「现代风格说明卡」风格的信息图,采用玻璃拟态（Glassmorphism）和3D质感图标。包含实拍图、信息图表。色彩方案以简约大气主。',
-    word_style: '标题醒目。正文使用现代黑体，配以简洁的功能性图标。',
-    content_principle: '保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '模块间具有明显的圆角矩形边界，视觉通透，具有高度的科学性和信赖感。'
-  },
-  {
-    id: 'ancient-manuscript',
-    name: '古籍纸张',
-    tag: '古籍,水墨,历史',
-    preview: '/previews/ancient-manuscript.jpg',
-    background: '背景为发黄、有褶皱感的陈年卷轴或古籍纸张。',
-    visual_style: '「古籍纸张」风格的信息图,采用白描或水墨笔触的形象以及装饰。',
-    word_style: '标题使用书法字体，正文使用竖排或仿宋印刷体。出处和功效采用传统的卷轴或印章式框选。',
-    content_principle: '保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '上下留白较多，中心图文分布类似古代字帖，带有浓郁的历史韵味。'
-  },
-  {
-    id: 'natural-encyclopedia-card',
-    name: '自然百科卡片',
-    tag: '自然,百科,清新',
-    preview: '/previews/natural-encyclopedia-card.jpg',
-    background: '背景为柔和的暖色渐变（如浅绿到淡橘色的过渡）。',
-    visual_style: '「自然百科卡片」风格的信息图,采用写实照，采用圆角卡片布局。包含各类统计图表。图标采用简约的线性填充风。',
-    word_style: '标题巨大且有分量感。正文使用深灰色易读字体，数值部分加粗放大。底部带有品牌化Logo标识。',
-    content_principle: '网格化模块呈现信息。保留所有原始条目、流程、逻辑关系、数据和专业术语。',
-    negative_space: '各功能模块之间呼吸感强，色彩清新，适合在社交媒体或健康百科中展示。'
-  }
-]
+const STYLE_PRESETS = INFOGRAPHIC_STYLE_PRESETS
+const LAYOUT_PRESETS = INFOGRAPHIC_LAYOUT_PRESETS
 
 export default function InfographicPage() {
   const navigate = useNavigate()
@@ -208,8 +50,9 @@ export default function InfographicPage() {
 
   const [article, setArticle] = useState('')
   const [styleId, setStyleId] = useState<'auto' | string>('auto')
+  const [layoutId, setLayoutId] = useState<'auto' | string>('auto')
   const [quality, setQuality] = useState<'1K' | '2K' | '4K'>('2K')
-  const [ratio, setRatio] = useState<'2.35:1' | '3:4' | '1:1' | '4:3' | '16:9' | '9:16'>('16:9')
+  const [ratio, setRatio] = useState<'2.35:1' | '3:4' | '1:1' | '4:3' | '16:9' | '9:16'>('9:16')
   const [isConfigOpen, setIsConfigOpen] = useState(true)
 
   const [blocks, setBlocks] = useState<InfographicBlock[]>([])
@@ -264,41 +107,10 @@ export default function InfographicPage() {
     bumpGalleryRefreshKey()
   }
 
-  const autoStyleId = useMemo(() => {
-    const text = article.trim().toLowerCase()
-    if (!text) return 'hand-drawn-visual-notes'
-
-    const rules: Array<{ id: string; keywords: string[] }> = [
-      { id: 'hand-drawn-visual-notes', keywords: ['手绘', '视觉笔记', '笔记', '复盘', '总结', '学习', '课程', '思维导图'] },
-      { id: 'modern-vector-flat', keywords: ['矢量', '扁平', '现代', '产品', '商业', '品牌', '流程', '系统', '工具', '平台', '数据'] },
-      { id: 'black-neon', keywords: ['霓虹', '暗黑', '赛博', '黑客', '安全', '未来', '科技'] },
-      { id: 'healing-journal', keywords: ['治愈', '手帐', '温馨', '情绪', '情感', '关系', '日常', '生活'] },
-      { id: 'expert-whiteboard', keywords: ['白板', '教学', '讲解', '课堂', '训练', '教程', '步骤'] },
-      { id: 'naval-modular', keywords: ['系统', '模块', '模型', '方法论', '框架', '思维', '认知', '层级'] },
-      { id: 'blackboard-comic', keywords: ['黑板', '漫画', '板书', '课堂', '老师', '学生', '提问'] },
-      { id: 'cornell-notes-stickers', keywords: ['康奈尔', '贴纸', '学习', '复习', '要点', '考点'] },
-      { id: 'bilingual-encyclopedia', keywords: ['百科', '图鉴', '双语', '词条', '术语', '专业'] },
-      { id: 'chinese-painting-style', keywords: ['国风', '古风', '传统', '文化', '诗词', '东方', '工笔', '水墨'] },
-      { id: 'modern-info-card', keywords: ['说明', '指南', '手册', '实验室', '3d', '玻璃', '配置', '参数'] },
-      { id: 'ancient-manuscript', keywords: ['古籍', '历史', '中医', '草药', '卷轴', '典籍', '文言'] },
-      { id: 'natural-encyclopedia-card', keywords: ['自然', '植物', '动物', '生态', '环境', '健康', '统计', '数据'] }
-    ]
-
-    let bestId = 'hand-drawn-visual-notes'
-    let bestScore = 0
-    for (const rule of rules) {
-      let score = 0
-      for (const kw of rule.keywords) {
-        if (!kw) continue
-        if (text.includes(kw.toLowerCase())) score += 1
-      }
-      if (score > bestScore) {
-        bestScore = score
-        bestId = rule.id
-      }
-    }
-    return bestId
-  }, [article])
+  const autoStyleId = useMemo(
+    () => matchBestStyleId(article, INFOGRAPHIC_STYLE_KEYWORDS, 'craft-handmade'),
+    [article]
+  )
 
   const autoStyle = useMemo(() => {
     return STYLE_PRESETS.find(s => s.id === autoStyleId) || STYLE_PRESETS[0]
@@ -308,6 +120,38 @@ export default function InfographicPage() {
     const effectiveId = styleId === 'auto' ? autoStyleId : styleId
     return STYLE_PRESETS.find(s => s.id === effectiveId) || STYLE_PRESETS[0]
   }, [styleId, autoStyleId])
+
+  const autoLayoutId = useMemo(() => {
+    const text = article.trim().toLowerCase()
+    if (!text) return 'bento-grid'
+
+    const hasTimeline = /(时间线|timeline|历史|阶段|步骤|step|流程|过程)/i.test(text)
+    const hasComparison = /(vs|对比|比较|优缺点|差异|区别)/i.test(text)
+    const hasHierarchy = /(层级|金字塔|优先级|等级|级别|马斯洛)/i.test(text)
+    const hasFunnel = /(漏斗|转化|筛选|销售|用户)/i.test(text)
+    const hasCycle = /(循环|周期|闭环|生命周期|迭代)/i.test(text)
+    const hasRoadmap = /(路线图|规划|里程碑|发展|路径)/i.test(text)
+    const hasVenn = /(交集|重叠|关系|共同|韦恩)/i.test(text)
+
+    if (hasTimeline) return 'linear-progression'
+    if (hasComparison) return 'binary-comparison'
+    if (hasHierarchy) return 'hierarchical-layers'
+    if (hasFunnel) return 'funnel'
+    if (hasCycle) return 'circular-flow'
+    if (hasRoadmap) return 'winding-roadmap'
+    if (hasVenn) return 'venn-diagram'
+
+    return 'bento-grid'
+  }, [article])
+
+  const autoLayout = useMemo(() => {
+    return LAYOUT_PRESETS.find(l => l.id === autoLayoutId) || LAYOUT_PRESETS[0]
+  }, [autoLayoutId])
+
+  const selectedLayout = useMemo(() => {
+    const effectiveId = layoutId === 'auto' ? autoLayoutId : layoutId
+    return LAYOUT_PRESETS.find(l => l.id === effectiveId) || LAYOUT_PRESETS[0]
+  }, [layoutId, autoLayoutId])
 
   const handleArticleFile = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -322,44 +166,6 @@ export default function InfographicPage() {
     reader.readAsText(file)
   }
 
-  const parseJsonFromContent = (content: string): unknown => {
-    const cleaned = content.replace(/```json|```/gi, '').trim()
-    try {
-      return JSON.parse(cleaned)
-    } catch {
-      const objStart = cleaned.indexOf('{')
-      const objEnd = cleaned.lastIndexOf('}')
-      if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
-        try {
-          return JSON.parse(cleaned.slice(objStart, objEnd + 1))
-        } catch {}
-      }
-
-      const arrStart = cleaned.indexOf('[')
-      const arrEnd = cleaned.lastIndexOf(']')
-      if (arrStart !== -1 && arrEnd !== -1 && arrEnd > arrStart) {
-        try {
-          return JSON.parse(cleaned.slice(arrStart, arrEnd + 1))
-        } catch {}
-      }
-      throw new Error('无法解析模型返回的 JSON')
-    }
-  }
-
-  const toOneLine = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '')
-
-  const asPlainObject = (v: unknown): Record<string, any> | null => {
-    if (typeof v !== 'object' || v === null) return null
-    if (Array.isArray(v)) return null
-    return v as Record<string, any>
-  }
-
-  const toStringArray = (v: unknown) => {
-    if (Array.isArray(v)) return v.map(item => toOneLine(item)).filter(Boolean)
-    const single = toOneLine(v)
-    return single ? [single] : []
-  }
-
   const buildStylePrompt = (style: InfographicStylePreset) => {
     return [
       `${style.name}（${style.tag}）`,
@@ -369,16 +175,6 @@ export default function InfographicPage() {
       `内容原则：${style.content_principle}`,
       `留白规则：${style.negative_space}`
     ].join('；')
-  }
-
-  const inferOrientation = (r: string): 'Landscape (horizontal)' | 'Portrait (vertical)' | 'Square' => {
-    const parts = r.split(':').map(n => Number(n))
-    if (parts.length !== 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1]) || parts[0] <= 0 || parts[1] <= 0) {
-      return 'Square'
-    }
-    if (parts[0] > parts[1]) return 'Landscape (horizontal)'
-    if (parts[0] < parts[1]) return 'Portrait (vertical)'
-    return 'Square'
   }
 
   const buildInfographicBasePromptLines = (r: string) => {
@@ -421,8 +217,9 @@ export default function InfographicPage() {
   const buildPlannerSystemPrompt = (params: {
     ratio: string
     style: InfographicStylePreset
+    layout: LayoutPreset
   }) => {
-    const { ratio, style } = params
+    const { ratio, style, layout } = params
 
     const lines: string[] = []
 
@@ -442,6 +239,13 @@ export default function InfographicPage() {
     lines.push(`- style_name: ${style.name}`)
     lines.push(`- style_tag: ${style.tag}`)
     lines.push(`- style_keypoints: ${buildStylePrompt(style)}`)
+    lines.push('')
+    lines.push('布局（信息架构）：')
+    lines.push(`- layout_id: ${layout.id}`)
+    lines.push(`- layout_name: ${layout.name}`)
+    lines.push(`- layout_desc: ${layout.desc}`)
+    lines.push(`- layout_bestFor: ${layout.bestFor}`)
+    lines.push(`- layout_keyPoints: ${layout.keyPoints.join('、')}`)
     lines.push('')
     lines.push('画幅：')
     lines.push(`- aspect_ratio: ${ratio}`)
@@ -648,7 +452,8 @@ export default function InfographicPage() {
 
     const systemPrompt = buildPlannerSystemPrompt({
       ratio,
-      style: selectedStyle
+      style: selectedStyle,
+      layout: selectedLayout
     })
 
     const userPrompt = `内容：\n${article}`
@@ -783,7 +588,7 @@ export default function InfographicPage() {
       return
     }
 
-    const model = buildDynamicImageModel(config.imageModel, quality, ratio)
+    const model = buildDynamicImageModel(config.imageModel, quality, ratio, config.enableModelSuffix ?? true)
 
     setBlocks(prev => {
       const next = [...prev]
@@ -883,12 +688,6 @@ export default function InfographicPage() {
     showToast('已复制提示词', 'success')
   }
 
-  const toAspect = (r: string) => {
-    const parts = r.split(':').map(n => Number(n))
-    if (parts.length !== 2 || !parts[0] || !parts[1]) return '1 / 1'
-    return `${parts[0]} / ${parts[1]}`
-  }
-
   return (
     <div className="h-full overflow-hidden">
       <div className="h-full flex flex-col">
@@ -919,7 +718,7 @@ export default function InfographicPage() {
               isConfigOpen ? 'block' : 'hidden'
             ].join(' ')}
           >
-            <div className="mb-4">
+            <div className="mb-3">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium">内容输入</label>
                 <button
@@ -933,7 +732,7 @@ export default function InfographicPage() {
                 value={article}
                 onChange={(e) => setArticle(e.target.value)}
                 placeholder="粘贴内容，或点击右上角上传文件..."
-                className="w-full px-3 py-2 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] h-56 resize-none shadow-sm font-serif"
+                className="w-full px-3 py-2 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] h-32 resize-none shadow-sm font-serif"
               />
               <input
                 ref={articleFileRef}
@@ -945,7 +744,7 @@ export default function InfographicPage() {
               <button
                 onClick={extractBlocks}
                 disabled={extracting}
-                className="w-full mt-3 px-4 py-3 bg-[var(--accent-color)] text-white rounded-xl hover:bg-[var(--accent-hover)] disabled:opacity-50 transition-colors shadow-sm flex items-center justify-center gap-2"
+                className="w-full mt-2 px-4 py-2.5 bg-[var(--accent-color)] text-white rounded-xl hover:bg-[var(--accent-hover)] disabled:opacity-50 transition-colors shadow-sm flex items-center justify-center gap-2"
               >
                 {extracting ? (
                   <>
@@ -958,22 +757,34 @@ export default function InfographicPage() {
               </button>
             </div>
 
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-4 shadow-sm mb-4">
-              <div className="text-sm font-medium mb-3">配置</div>
-              <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl p-3 shadow-sm mb-3">
+              <div className="text-sm font-medium mb-2">配置</div>
+              <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="text-sm">输出张数</div>
                 <div className="text-xs text-[var(--text-tertiary)]">1 张</div>
               </div>
 
+              <label className="block text-sm mb-0.5">信息布局</label>
+              <select
+                value={layoutId}
+                onChange={(e) => setLayoutId(e.target.value as any)}
+                className="w-full px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm shadow-sm"
+              >
+                <option value="auto">自动（推荐 {autoLayout.name}）</option>
+                {LAYOUT_PRESETS.map(layout => (
+                  <option key={layout.id} value={layout.id}>{layout.name}</option>
+                ))}
+              </select>
+
               <details className="mt-2">
                 <summary className="text-sm cursor-pointer select-none text-[var(--text-secondary)]">高级生成参数</summary>
-                <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className="grid grid-cols-2 gap-2 mt-2">
                   <div>
-                    <label className="block text-xs text-[var(--text-tertiary)] mb-1">分辨率</label>
+                    <label className="block text-xs text-[var(--text-tertiary)] mb-0.5">分辨率</label>
                     <select
                       value={quality}
                       onChange={(e) => setQuality(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
+                      className="w-full px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm shadow-sm"
                     >
                       <option value="1K">1K</option>
                       <option value="2K">2K</option>
@@ -981,11 +792,11 @@ export default function InfographicPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-[var(--text-tertiary)] mb-1">比例</label>
+                    <label className="block text-xs text-[var(--text-tertiary)] mb-0.5">比例</label>
                     <select
                       value={ratio}
                       onChange={(e) => setRatio(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-sm"
+                      className="w-full px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-sm shadow-sm"
                     >
                       <option value="2.35:1">2.35:1</option>
                       <option value="3:4">3:4</option>
@@ -999,32 +810,36 @@ export default function InfographicPage() {
               </details>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm font-medium">信息图风格</div>
-                <div className="text-xs text-[var(--text-tertiary)]">点击预览并选中</div>
+                <div className="text-xs text-[var(--text-tertiary)]">点击选择，预览看大图</div>
               </div>
 
-              <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] overflow-hidden shadow-sm mb-3">
-                <div className="bg-[var(--bg-tertiary)]" style={{ aspectRatio: '16 / 9' }}>
-                  <img
-                    src={selectedStyle.preview}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+              <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-sm mb-3">
                 <div className="p-3">
-                  <div className="text-sm font-medium truncate">
-                    {styleId === 'auto' ? `自动（推荐：${autoStyle.name}）` : selectedStyle.name}
-                  </div>
-                  <div className="text-xs text-[var(--text-tertiary)] font-serif mt-1">{selectedStyle.tag}</div>
-                  <div className="text-[11px] text-[var(--text-tertiary)] font-serif mt-1 line-clamp-2">
-                    {selectedStyle.visual_style}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {styleId === 'auto' ? `自动（推荐：${autoStyle.name}）` : selectedStyle.name}
+                      </div>
+                      <div className="text-xs text-[var(--text-tertiary)] font-serif mt-1">{selectedStyle.tag}</div>
+                      <div className="text-[11px] text-[var(--text-tertiary)] font-serif mt-1 line-clamp-2">
+                        {selectedStyle.visual_style}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openLightbox(selectedStyle.preview)}
+                      className="shrink-0 px-2.5 py-1.5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)] text-xs hover:bg-[var(--bg-tertiary)] transition-colors"
+                    >
+                      预览
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <div className="max-h-80 overflow-y-auto pr-1">
+              <div className="max-h-96 overflow-y-auto pr-1">
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setStyleId('auto')}
