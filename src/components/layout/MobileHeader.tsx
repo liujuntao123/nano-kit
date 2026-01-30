@@ -31,7 +31,7 @@ export default function MobileHeader() {
       {/* Right: Actions */}
       <div className="flex items-center gap-1">
         <a
-          href="https://github.com/Tansuo2021/gemini-3-pro-image-preview"
+          href="https://github.com/liujuntao123/nano-kit"
           target="_blank"
           rel="noopener noreferrer"
           className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
