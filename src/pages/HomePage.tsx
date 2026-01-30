@@ -76,7 +76,7 @@ export default function HomePage() {
         <div className="flex items-start justify-between gap-3 mb-4 lg:hidden">
           <div className="min-w-0">
             <h1 className="text-lg font-semibold tracking-tight truncate">作品管理{titleSuffix}</h1>
-            <p className="text-xs text-[var(--text-tertiary)] mt-1 font-serif">瀑布流展示所有生成图片与提示词</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1 font-serif">所有生成图片与提示词</p>
           </div>
 
           <div className="flex items-center gap-2">
