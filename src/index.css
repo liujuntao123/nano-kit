@@ -5,6 +5,7 @@
 /* Base styles */
 :root {
   color-scheme: light;
+  --app-height: 100vh;
 
   /* Anthropic-inspired palette */
   --ink: #141413;

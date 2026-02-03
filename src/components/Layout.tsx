@@ -21,7 +21,7 @@ export default function Layout() {
   const { dbReady, dbInitializing, dbError, retryInitDB, resetDB } = useAppStore()
 
   return (
-    <div className="h-screen flex flex-col text-[var(--text-primary)]">
+    <div className="h-full flex flex-col text-[var(--text-primary)]">
       {/* Mobile Header */}
       <MobileHeader />
 

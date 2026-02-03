@@ -6,7 +6,7 @@ export default function MobileHeader() {
   const isDark = theme === 'dark'
 
   return (
-    <header className="lg:hidden flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+    <header className="lg:hidden flex items-center justify-between px-3 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
       {/* Left: Menu */}
       <button
         onClick={toggleLeftSidebar}
