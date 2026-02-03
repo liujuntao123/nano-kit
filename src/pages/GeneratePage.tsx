@@ -12,7 +12,7 @@ export default function GeneratePage() {
       </div>
 
       {/* Bottom composer */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[var(--bg-primary)] to-transparent">
+      <div className="absolute bottom-0 left-0 right-0 p-4 pb-12 sm:pb-4 bg-gradient-to-t from-[var(--bg-primary)] to-transparent">
         <div className="max-w-3xl mx-auto">
           <ChatInput variant="floating" />
         </div>

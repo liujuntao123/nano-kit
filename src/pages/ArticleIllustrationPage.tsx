@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store/appStore'
-import { buildDynamicImageModel, buildGeminiUrl, buildOpenAIUrl, downloadImage, nativeFetch } from '../utils/helpers'
+import { downloadImage } from '../utils/helpers'
+import { normalizeModelBlocks, requestImageGeneration, requestTextGeneration } from '../services/image-generation'
 import { usePageHeader } from '../components/layout/PageHeaderContext'
 import {
   ARTICLE_STYLE_PRESETS,
@@ -536,77 +537,11 @@ export default function ArticleIllustrationPage() {
 
 
     try {
-      let rawContent = ''
-
-      if (textConfig.type === 'openai') {
-        const res = await nativeFetch(buildOpenAIUrl(textConfig.host, '/chat/completions'), {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${textConfig.key}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: textConfig.textModel,
-            stream: false,
-            messages: [
-              {
-                role: 'system',
-                content: systemPrompt
-              },
-              {
-                role: 'user',
-                content: userPrompt
-              }
-            ]
-          })
-        })
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-        const data = await res.json()
-        if (data.error) throw new Error(data.error.message)
-        rawContent = data.choices?.[0]?.message?.content || ''
-      } else {
-        const res = await nativeFetch(
-          buildGeminiUrl(textConfig.host, `/models/${textConfig.textModel}:generateContent`),
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': textConfig.key
-            },
-            body: JSON.stringify({
-              systemInstruction: {
-                role: 'system',
-                parts: [{ text: systemPrompt }]
-              },
-              contents: [
-                {
-                  role: 'user',
-                  parts: [{ text: userPrompt }]
-                }
-              ],
-              generationConfig: { responseModalities: ['TEXT'] }
-            })
-          }
-        )
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-        const data = await res.json()
-        rawContent = (data.candidates?.[0]?.content?.parts || [])
-          .map((p: any) => p.text)
-          .filter(Boolean)
-          .join('')
-      }
-
+      const rawContent = await requestTextGeneration(textConfig, { systemPrompt, userPrompt })
       const parsed = parseJsonFromContent(rawContent)
+      const list = normalizeModelBlocks(parsed)
 
-      const list = Array.isArray(parsed)
-        ? parsed
-        : (parsed as any)?.blocks
-
-      if (!Array.isArray(list)) throw new Error('返回格式不正确：未找到 blocks 数组')
+      if (!Array.isArray(list) || list.length === 0) throw new Error('返回格式不正确：未找到 blocks 数组')
 
       const normalized: IllustrationBlock[] = list.slice(0, totalCount).map((item: any, i: number) => {
         const kind: IllustrationBlock['kind'] = includeCover && i === 0 ? 'cover' : 'content'
@@ -665,8 +600,6 @@ export default function ArticleIllustrationPage() {
       return
     }
 
-    const model = buildDynamicImageModel(config.imageModel, quality, ratio, config.enableModelSuffix ?? true)
-
     setBlocks(prev => {
       const next = [...prev]
       next[index] = { ...next[index], imageData: 'loading' }
@@ -674,60 +607,12 @@ export default function ArticleIllustrationPage() {
     })
 
     try {
-      let imageData: string | null = null
-
-      if (config.type === 'openai') {
-        let size = '1024x1024'
-        if (quality === '2K') size = '2048x2048'
-        else if (quality === '4K') size = '4096x4096'
-
-        const res = await nativeFetch(buildOpenAIUrl(config.host, '/chat/completions'), {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${config.key}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
-            stream: false,
-            size,
-            aspect_ratio: ratio
-          })
-        })
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-        const data = await res.json()
-        const content = data.choices?.[0]?.message?.content || ''
-        const match = content.match(/!\[.*?\]\((data:image\/[^)]+)\)/)
-        if (match) imageData = match[1]
-      } else {
-        const res = await nativeFetch(buildGeminiUrl(config.host, `/models/${model}:generateContent`), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': config.key
-          },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseModalities: ['IMAGE'],
-              imageConfig: { imageSize: quality, aspectRatio: ratio }
-            }
-          })
-        })
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-        const data = await res.json()
-        const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData
-        if (inlineData?.data && inlineData?.mimeType) {
-          imageData = `data:${inlineData.mimeType};base64,${inlineData.data}`
-        }
-      }
-
-      if (!imageData) throw new Error('未返回图片数据')
+      const imageData = await requestImageGeneration(config, {
+        prompt,
+        quality,
+        ratio,
+        enableModelSuffix: config.enableModelSuffix
+      })
 
       setBlocks(prev => {
         const next = [...prev]
