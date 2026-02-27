@@ -2,6 +2,12 @@
 
 > 基于 Nano Banana Pro 的图片工具箱，提供各种方便快捷的生图工具，以及本地化图片管理，用户可自定义 API 管理。
 
+**网站预览**
+https://nano-kit.aizhi.site/
+
+<img width="2318" height="1239" alt="image" src="https://github.com/user-attachments/assets/e5a31e24-1ea2-4043-8807-d787b6e044c6" />
+
+
 ## ✨ 亮点介绍
 
 | 功能 | 描述 |
